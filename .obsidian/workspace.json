@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "2556036f92b81f42",
+        "id": "477f1cf965ca606e",
         "type": "tabs",
         "children": [
           {
-            "id": "0ae3ce8edab2ab7f",
+            "id": "a31de1b302cdc5cf",
             "type": "leaf",
             "state": {
               "type": "graph",
@@ -157,6 +157,16 @@
               "icon": "lucide-list",
               "title": "Outline"
             }
+          },
+          {
+            "id": "20a272e103b5d792",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {},
+              "icon": "calendar-with-checkmark",
+              "title": "Calendar"
+            }
           }
         ]
       }
@@ -173,10 +183,12 @@
       "daily-notes:Open today's daily note": false,
       "templates:Insert template": false,
       "command-palette:Open command palette": false,
-      "bases:Create new base": false
+      "bases:Create new base": false,
+      "obsidian-memos:Thino": false,
+      "obsidian-memos:Thino Super": false
     }
   },
-  "active": "0ae3ce8edab2ab7f",
+  "active": "a31de1b302cdc5cf",
   "lastOpenFiles": [
     "wiki/comparisons/Wiki vs RAG.md",
     "wiki/comparisons/Wiki vs RAG.md.tmp.224546.1775556215080",
