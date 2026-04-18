@@ -40,8 +40,18 @@ The following Obsidian community plugins ship with this vault as pre-installed b
 
 ---
 
-## claude-obsidian
+## claude-obsidian (upstream)
 
 **Author:** AgriciDaniel / AI Marketing Hub
 **License:** MIT (see [LICENSE](LICENSE))
 **Repository:** https://github.com/AgriciDaniel/claude-obsidian
+
+vault-os is a fork of claude-obsidian. All original work, architecture, and design credit belongs to AgriciDaniel.
+
+---
+
+## vault-os fork
+
+**Maintainer:** saixso
+**Repository:** https://github.com/saixso/vault-os
+**Changes:** Rebranding, opinionated defaults, harness and hooks layer (in progress)

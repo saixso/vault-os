@@ -1,29 +1,29 @@
 {
-  "name": "claude-obsidian-marketplace",
+  "name": "vault-os-marketplace",
   "owner": {
-    "name": "AgriciDaniel",
-    "url": "https://github.com/AgriciDaniel"
+    "name": "saixso",
+    "url": "https://github.com/saixso"
   },
   "metadata": {
-    "description": "claude-obsidian: Claude + Obsidian knowledge companion by AgriciDaniel",
-    "version": "1.4.2"
+    "description": "vault-os: Opinionated Claude Code + Obsidian knowledge companion by saixso",
+    "version": "2.0.0"
   },
   "plugins": [
     {
-      "name": "claude-obsidian",
+      "name": "vault-os",
       "source": {
         "source": "github",
-        "repo": "AgriciDaniel/claude-obsidian",
+        "repo": "saixso/vault-os",
         "ref": "main"
       },
-      "description": "Claude + Obsidian knowledge companion. Sets up a persistent, compounding wiki vault. Covers memory management, session notetaking, knowledge organization, and agent context across projects.",
-      "version": "1.4.2",
+      "description": "Opinionated Claude Code + Obsidian knowledge companion. Persistent, compounding wiki vault with harness and hooks. Fork of claude-obsidian by AgriciDaniel.",
+      "version": "2.0.0",
       "author": {
-        "name": "AgriciDaniel",
-        "url": "https://github.com/AgriciDaniel"
+        "name": "saixso",
+        "url": "https://github.com/saixso"
       },
-      "homepage": "https://github.com/AgriciDaniel/claude-obsidian",
-      "repository": "https://github.com/AgriciDaniel/claude-obsidian",
+      "homepage": "https://github.com/saixso/vault-os",
+      "repository": "https://github.com/saixso/vault-os",
       "license": "MIT"
     }
   ]
