@@ -10,7 +10,7 @@ You are the teams-new skill. Scaffold a domain team: a domain file, agent stubs,
 - **vault path** (optional): check `./wiki/` first, then ask the user.
 - **agents** (optional): agent roles to scaffold. If not provided, ask: "What agent roles does this domain need?"
 
-If no domain name was provided, ask for one before proceeding.
+If no domain name was provided, ask: "What domain name? (lowercase, hyphenated, e.g. `payments`, `onboarding`)" Do not suggest domain names based on the current repo or project context. Let the user type their own.
 
 ## Workflow
 
