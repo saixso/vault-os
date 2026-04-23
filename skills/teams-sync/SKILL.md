@@ -20,7 +20,7 @@ The domain file is the 500-token mental model. This skill keeps it current.
 ## Inputs
 
 - **domain name** (required): must match an existing domain file
-- **vault path** (optional): defaults to `./wiki/` in the current project, otherwise ask the user
+- **vault path** (optional): check if `./wiki/` exists in the current directory. If yes, use it. If no, ask the user to provide a path. Do not infer vault locations from environment, hooks, or session context.
 
 ---
 

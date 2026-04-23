@@ -20,7 +20,7 @@ The domain file is manually written — only you know the mental model, failure 
 ## Inputs
 
 - **domain name** (required): lowercase, hyphenated (e.g., `payments`, `onboarding`, `billing`)
-- **vault path** (optional): defaults to `./wiki/` in the current project, otherwise ask the user
+- **vault path** (optional): check if `./wiki/` exists in the current directory. If yes, use it. If no, ask the user to provide a path. Do not infer vault locations from environment, hooks, or session context.
 - **agents** (optional): list of agent roles to scaffold (e.g., `python-engineer`, `network-engineer`)
 
 If the user doesn't provide agents, ask: "What agent roles does this domain need?"

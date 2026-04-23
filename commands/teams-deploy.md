@@ -13,7 +13,7 @@ If no domain name was provided, ask for one before proceeding.
 
 ## Workflow
 
-1. **Resolve vault**: `./wiki/` in the current directory, otherwise ask the user
+1. **Resolve vault**: check if `./wiki/` exists. If yes, use it. If no, ask the user to provide a path. Do not infer vault locations from environment, hooks, or session context.
 2. **Verify domain exists**: check `{vault}/wiki/domains/{domain}.md`. If not found: "Domain '{domain}' not found. Run /teams-new {domain} first."
 3. **Verify target repo**: use provided path or cwd. Must be a git repo (`git rev-parse --git-dir`).
 4. **Check current state** of `{repo}/.claude/CLAUDE.md`:
