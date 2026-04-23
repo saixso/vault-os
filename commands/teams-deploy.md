@@ -44,16 +44,22 @@ If no domain name was provided, print: "What domain? (must match a domain file i
 
 5. **Verify Domain Router hook** (once, not per repo): check `~/.claude/settings.json` for a SessionStart hook that reads domain files. Warn if missing.
 
-6. **Report**: print a summary for all repos:
+6. **Load domain context into current session**: read the domain file (`{vault}/wiki/domains/{domain}.md`) and print its contents so the domain context is immediately available. Preface it with:
+
+```
+Domain context loaded for this session:
+```
+
+7. **Report**: print a summary for all repos:
 
 ```
 Domain **{domain}** deployed:
 
   {repo1}/.claude/CLAUDE.md   — wired (new)
-  {repo2}/CLAUDE.md           — wired (updated, was: {old-domain})
+  {repo2}/.claude/CLAUDE.md   — wired (updated, was: {old-domain})
   {repo3}/.claude/CLAUDE.md   — already wired, skipped
 
-Domain Router will load `wiki/domains/{domain}.md` on every SessionStart in these repos.
+Domain context is active now. Future sessions will load it automatically via the Domain Router hook.
 ```
 
 ## Constraints
