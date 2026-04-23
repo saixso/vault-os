@@ -82,23 +82,38 @@ This is a **hierarchical rollup**, loosely similar to LSM-tree compaction but wi
 
 ---
 
-## Mechanism 2 — Content-Addressable Paths
+## Mechanism 2 — Deterministic Page Addresses
 
-Every page gets an `address` field in frontmatter encoding its fold-tree position plus a content hash:
+Every new page gets a stable `address` field in frontmatter. The Phase 2 MVP uses a simple creation-order counter:
 
+```yaml
+address: c-000042
 ```
-address: 0b10110/a7f3c2
-```
 
-**What this gives:**
-- Deterministic lineage: a page's fold ancestry is reconstructable from its address.
-- Organizational convention: tooling and lint can treat pages by address without consulting content.
+Format: `c-<6-digit-counter>`. `c-` means "creation-order counter." Zero-padded.
 
-**What this does NOT give (corrected from v0.1):**
-- **It does not directly improve Anthropic prompt cache hit rate.** Per Anthropic's docs, cache hits require byte-identical content up to the breakpoint. The address becomes part of the cached content only if the vault text actually includes it inside a cached block; even then, the hash suffix *rotates on content edits*, which would destabilize any prefix that relies on it. What actually helps cache hit rate: placing stable content (system prompts, tool definitions, pinned vault sections) before the breakpoint and keeping it byte-identical across requests. That principle is independent of path aesthetics.
-- Address anchoring is kept in the spec as an organizational and lineage-tracking convention, not as a cache mechanism.
+**Future extension** (documented, not shipped in Phase 2):
+- Fold-relative path: `f1.2/c-000042` once folds exist, where `f1.2` encodes the fold-tree lineage.
+- Content hash suffix: `c-000042:h7f3c2` once the hash-rotation policy is decided.
 
-**Stability policy (open design question):** when a page's content changes, either (a) the bit-prefix stays and only the hash suffix rotates (preserves lineage, creates aliasing), or (b) the whole address rotates (simpler, loses lineage). Deferred to Phase 2 implementation.
+**What Phase 2 MVP gives:**
+- Uniqueness: counter is monotonically increasing; deleted pages' addresses are retired, never reused.
+- Stability: never changes across content edits.
+- Determinism: derivable from the counter state at `.vault-meta/address-counter.txt`.
+- Ordering: preserves creation sequence.
+
+**What this does NOT give (renamed "content-addressable paths" was misleading in v0.1):**
+- **No content-addressability in the MVP.** The Phase 2 address is a sequence counter, not a content hash. Renaming this mechanism from "content-addressable paths" to "deterministic page addresses" is more honest about what actually ships.
+- **No prompt cache benefit** (already corrected in v0.1 → v0.2). Per Anthropic docs, cache hits require byte-identical prefixes; an address field in frontmatter only helps if the frontmatter itself is inside a cached block AND stays byte-identical. Stable prefixes, not addresses, drive cache hits.
+
+**Phase 2 exclusions** (all deferred):
+- Backfill of legacy pre-Phase-2 pages (will use `l-` prefix with its own counter).
+- Fold-ancestry bit prefix (requires committed folds from a future fold-of-folds skill).
+- Content hash suffix (rotation policy unresolved; see limitations).
+
+**Implementation** (Phase 2, shipped):
+- `skills/wiki-ingest/SKILL.md` → Address Assignment section: read `.vault-meta/address-counter.txt`, use value, increment, write back. Bash-only to avoid PostToolUse hook side effects on the counter file.
+- `skills/wiki-lint/SKILL.md` → Address Validation section: format check, uniqueness check, counter-drift check. Pages without addresses are reported informationally, not as errors.
 
 ---
 
