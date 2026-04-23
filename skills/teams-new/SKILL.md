@@ -66,29 +66,35 @@ delivery:
 
 # {Domain} Engineering
 
-## What this domain is
-<!-- One sentence — the mission. What does this team own? -->
+## Mission
+<!-- One sentence: what does this team own? What happens if you fail? -->
 
-## How things work here
-<!-- The mental model. How data flows. How components connect.
-What the pipeline actually does. The things that aren't obvious from reading the code. -->
+## What we own
+<!-- The boundaries. What's yours, what's not. Adjacent teams and where the handoff is. -->
+
+## How things work
+<!-- The mental model. How data flows. How components connect. The things that aren't obvious from reading the code. -->
 
 ## What breaks and why
-<!-- Patterns of failure. What to check first.
-The non-obvious failure modes. What broke last time. -->
+<!-- Patterns of failure from real incidents. What to check first. The non-obvious rules senior engineers carry in their heads. -->
+
+## Vendors
+<!-- External systems, platforms, tools. Who does what. Migration status. -->
+
+## The team
+<!-- Who carries what knowledge. Escalation contacts. Tribal knowledge holders. -->
 
 ## Conventions
-<!-- Rules not written anywhere else.
-Naming patterns, testing conventions, what never to do.
-The shortcuts senior engineers take that juniors miss. -->
+<!-- Rules not written anywhere else. Naming patterns, testing conventions. What never to do. -->
+
+## Stakeholders
+<!-- Who depends on this domain. Who do you depend on. -->
 
 ## Current context
-<!-- What's active right now. Open problems. Recent changes.
-What the team is focused on this sprint. -->
+<!-- What's active right now. Open problems. Recent changes. North star metric if you have one. -->
 
 ## Vault — query when needed
-<!-- Link wiki pages agents should pull when they need depth.
-These are NOT loaded at startup — agents lazy-load on demand. -->
+<!-- Link wiki pages agents should pull when they need depth. These are NOT loaded at startup. -->
 ```
 
 ### 4. Create agent stubs

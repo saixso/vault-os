@@ -47,23 +47,35 @@ delivery:
 
 # {Domain} Engineering
 
-## What this domain is
-<!-- One sentence — the mission. What does this team own? -->
+## Mission
+<!-- One sentence: what does this team own? What happens if you fail? -->
 
-## How things work here
-<!-- The mental model. How data flows. How components connect. -->
+## What we own
+<!-- The boundaries. What's yours, what's not. Adjacent teams and where the handoff is. -->
+
+## How things work
+<!-- The mental model. How data flows. How components connect. The things that aren't obvious from reading the code. -->
 
 ## What breaks and why
-<!-- Patterns of failure. What to check first. -->
+<!-- Patterns of failure from real incidents. What to check first. The non-obvious rules senior engineers carry in their heads. -->
+
+## Vendors
+<!-- External systems, platforms, tools. Who does what. Migration status. -->
+
+## The team
+<!-- Who carries what knowledge. Escalation contacts. Tribal knowledge holders. -->
 
 ## Conventions
-<!-- Rules not written anywhere else. Naming patterns, testing conventions. -->
+<!-- Rules not written anywhere else. Naming patterns, testing conventions. What never to do. -->
+
+## Stakeholders
+<!-- Who depends on this domain. Who do you depend on. -->
 
 ## Current context
-<!-- What's active right now. Open problems. Recent changes. -->
+<!-- What's active right now. Open problems. Recent changes. North star metric if you have one. -->
 
 ## Vault — query when needed
-<!-- Link wiki pages agents should pull when they need depth. -->
+<!-- Link wiki pages agents should pull when they need depth. These are NOT loaded at startup. -->
 ```
 
 4. **Create agent stubs** for each role at `{vault}/wiki/agents/{domain}-{role}.md`:
