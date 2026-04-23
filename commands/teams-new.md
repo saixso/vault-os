@@ -98,7 +98,16 @@ domain: {domain}
 ```
 
 5. **Wire to index**: append to `{vault}/wiki/index.md` under `## Domains` (create section if missing)
-6. **Report**: show created files and next steps (edit domain file, edit agent stubs, run `/teams-deploy`)
+6. **Report**: print this (fill in the domain name and agent count):
+
+```
+Your **{domain}** team is assembled. {n} agents recruited, domain file created.
+
+They don't know anything yet. Teach them:
+1. Edit `wiki/domains/{domain}.md` — write the context only you know
+2. Edit each agent stub — define what they specialize in
+3. Run `/teams-deploy` to activate them in this repo
+```
 
 ## Constraints
 
