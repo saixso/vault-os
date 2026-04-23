@@ -89,6 +89,9 @@ delivery:
 ## Current context
 <!-- What's active right now. Open problems. Recent changes. North star metric if you have one. -->
 
+## Agent instructions
+When working in this domain, use `/vault-os:wiki-query "<topic>"` to get deeper context on any entity or concept mentioned in this file. The domain file is the summary. The wiki has the full picture.
+
 ## Vault — query when needed
 <!-- Link wiki pages agents should pull when they need depth. These are NOT loaded at startup. -->
 ```

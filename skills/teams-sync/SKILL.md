@@ -1,117 +1,89 @@
 ---
 name: teams-sync
 description: >
-  Ratchet wiki learnings back into the domain file. Surfaces new wiki pages
-  tagged with the domain since the last sync, lets you pick what matters,
-  and updates the domain file with fresh context.
+  Check what's new in the wiki for your domain (brief mode), or fold learnings
+  into the domain file (ratchet mode). Brief is default and fast. Ratchet is
+  deliberate curation.
   Triggers on: "teams sync", "teams:sync", "/teams-sync", "sync domain",
-  "update domain", "ratchet domain".
+  "what's new", "domain update", "ratchet domain".
 allowed-tools: Read Write Edit Glob Grep
 ---
 
-# teams-sync: Ratchet Wiki Learnings Into the Domain File
+# teams-sync: Domain Briefing & Ratchet
 
-The wiki compounds through daily work — /save, /wiki-ingest, manual edits. But the domain file stays static unless you update it. This skill closes the loop: it reads what's new in the wiki for your domain and helps you fold it into the domain file.
-
-The domain file is the 500-token mental model. This skill keeps it current.
+Two modes:
+- **brief** (default): what's new in the wiki for this domain? Read-only, fast.
+- **ratchet**: fold new wiki learnings into the domain file. Deliberate, with approval.
 
 ---
 
 ## Inputs
 
-- **domain name** (required): must match an existing domain file
-- **vault path** (optional): check if `./wiki/` exists in the current directory. If yes, use it. If no, ask the user to provide a path. Do not infer vault locations from environment, hooks, or session context.
+- **domain name** (required): must match an existing domain file. Read from `.claude/CLAUDE.md` `domain:` line if available.
+- **mode** (optional): `brief` (default) or `ratchet`
+- **vault path**: resolved from `vault:` in `.claude/CLAUDE.md`, then `./wiki/`, then ask.
 
 ---
 
-## Workflow
+## Mode: brief (default)
+
+Quick read. No edits.
 
 ### 1. Load the domain file
-
-Read `{vault}/wiki/domains/{domain}.md`. Extract:
-- `updated:` date from frontmatter (this is the "last sync" marker)
-- Current content of each section
-- Current `## Vault — query when needed` links
+Read `{vault}/wiki/domains/{domain}.md`. Extract `updated:` date.
 
 ### 2. Find what's new
-
-Search the wiki for pages that are relevant to this domain:
-
-```
-Glob: {vault}/wiki/**/*.md
-```
-
-Filter to pages where:
+Glob `{vault}/wiki/**/*.md`. Filter to pages where:
 - `tags:` contains the domain name, OR
 - `domain:` frontmatter matches, OR
-- Filename or content references known domain entities
+- Content references known domain entities
 
-Then filter to pages where `updated:` or `created:` is after the domain file's `updated:` date.
+AND `updated:` or `created:` is after the domain file's `updated:` date.
 
-### 3. Categorize the new pages
+### 3. Print digest
+Show new and updated pages. End with: "Run `/teams-sync {domain} ratchet` to fold these into the domain file."
 
-Group them:
+If nothing new: "Wiki is up to date for **{domain}**."
 
-| Category | What it means for the domain file |
-|----------|----------------------------------|
-| New entities | May need a link in "Vault — query when needed" |
-| New concepts | May reveal a pattern worth adding to "How things work" |
-| New decisions | May change "Conventions" or "Current context" |
-| Saved insights | May surface a failure mode for "What breaks and why" |
-| Updated pages | Existing knowledge got deeper — check if domain file is stale |
+No edits. No date bumps. Fast.
 
-### 4. Present the digest
+---
 
-Show the user a summary:
+## Mode: ratchet
 
-```
-Wiki changes since {last_sync_date} for domain '{domain}':
+Deliberate curation with user approval.
 
-New pages:
-  + wiki/entities/new-service.md      (entity, created 2026-04-20)
-  + wiki/concepts/retry-pattern.md    (concept, created 2026-04-21)
-  + wiki/questions/why-dedup-fails.md (insight, saved 2026-04-22)
+### 1. Load the domain file
+Read `{vault}/wiki/domains/{domain}.md`. Extract `updated:` date and current section content.
 
-Updated pages:
-  ~ wiki/entities/auth-service.md     (updated 2026-04-21)
+### 2. Find what's new
+Same as brief mode.
 
-Suggestions:
-  → Add [[new-service]] to vault references
-  → "retry-pattern" may belong in "How things work here"
-  → "why-dedup-fails" reveals a failure mode for "What breaks and why"
-```
+### 3. Categorize
+Group by: new entities, concepts, decisions, insights, updated pages.
 
-### 5. Apply updates (with user approval)
+### 4. Present digest with suggestions
+For each new page, suggest where it fits in the domain file:
+- New entity → "Vault — query when needed" section
+- New concept → "How things work" section
+- New insight/failure → "What breaks and why" section
+- New convention → "Conventions" section
 
-For each suggestion, ask: "Add this to the domain file?"
+### 5. Apply with approval
+For each suggestion, ask before editing. Append to the relevant section. Never remove existing content.
 
-Then make the edits:
-- Add new wikilinks to `## Vault — query when needed`
-- Append one-liners to the relevant section (conventions, failure modes, etc.)
-- Never remove existing content — only append or update
-
-### 6. Bump the sync date
-
-Update the domain file's `updated:` frontmatter to today's date.
+### 6. Bump sync date
+Update `updated:` in domain frontmatter to today.
 
 ### 7. Report
-
-```
-Domain '{domain}' synced:
-  {n} new references added
-  {n} sections updated
-  updated: {today}
-
-The domain file is current. Next session will load the latest context.
-```
+Count of changes. Confirmation domain is current.
 
 ---
 
 ## Constraints
 
-- Never auto-apply changes — always show the digest and ask before editing
-- Never rewrite sections — append to them. The user's hand-written context is sacred.
-- Keep suggestions actionable: "add X to Y section" not "consider updating"
-- If no new pages found, say: "Wiki is up to date for {domain}. Nothing to sync."
-- Domain file must stay under ~500 tokens after updates — warn if it's growing too large
-- The `updated:` date in frontmatter is the sync marker — always bump it
+- Brief mode: read-only. Never edit any file.
+- Ratchet mode: never auto-apply. Always ask first.
+- Never rewrite sections: append only. User's hand-written context is sacred.
+- Domain file should stay under ~500 tokens. Warn if growing too large.
+- The `updated:` date in frontmatter is the sync marker. Only ratchet bumps it.
