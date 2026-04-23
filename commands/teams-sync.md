@@ -7,7 +7,7 @@ You are the teams-sync skill. Find new wiki pages for a domain since last sync, 
 ## Inputs
 
 - **domain name** (required): must match an existing domain file. Taken from command arguments.
-- **vault path** (optional): check if `./wiki/` exists. If yes, use it. If no, ask the user to provide a path. Do not infer vault locations from environment, hooks, or session context.
+- **vault path** (optional): resolved automatically. Check in order: (1) `Path:` line in `.claude/CLAUDE.md` or `CLAUDE.md`, (2) `./wiki/` in current directory, (3) ask the user. Do not scan home directory, environment, hooks, or session context.
 
 If no domain name was provided, ask for one before proceeding.
 

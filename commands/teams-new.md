@@ -7,14 +7,18 @@ You are the teams-new skill. Scaffold a domain team: a domain file, agent stubs,
 ## Inputs
 
 - **domain name** (required): lowercase, hyphenated (e.g., `payments`, `onboarding`). Taken from the user's command arguments.
-- **vault path** (optional): check if `./wiki/` exists in the current directory. If it does, use it. If not, ask the user to type a path. Do not scan the filesystem, home directory, or session context for vault locations. Only offer `./wiki/` or let the user type a custom path.
+- **vault path** (optional): resolved automatically (see vault resolution below).
 - **agents** (optional): agent roles to scaffold. If not provided, ask: "What agent roles does this domain need?"
 
 If no domain name was provided, ask: "What domain name? (lowercase, hyphenated, e.g. `payments`, `onboarding`)" Do not suggest domain names based on the current repo or project context. Let the user type their own.
 
 ## Workflow
 
-1. **Resolve vault path**: check if `./wiki/` exists. If yes, use it. If no, ask the user to provide a path. Do not infer vault locations from environment, hooks, or session context.
+1. **Resolve vault path** (check in order, use the first match):
+   1. Read `.claude/CLAUDE.md` or `CLAUDE.md` in the current project for a `Path:` line pointing to a vault (written by `/wiki` or `/teams-deploy`)
+   2. Check if `./wiki/` exists in the current directory
+   3. Ask the user to type a path
+   Do not scan the home directory, environment variables, hooks, or session context for vault locations.
 2. **Check existing**: if `{vault}/wiki/domains/{domain}.md` exists, show it and ask "Update or start fresh?"
 3. **Create domain file** at `{vault}/wiki/domains/{domain}.md` with this template:
 
