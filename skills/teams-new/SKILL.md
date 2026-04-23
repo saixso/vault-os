@@ -132,26 +132,23 @@ domain: {domain}
 
 ### 5. Wire the domain to the vault index
 
-Append to `{vault}/wiki/index.md`:
+Append one line to `{vault}/wiki/index.md` under `## Domains` (create the section if missing):
 ```
-## Domains
-- [[{domain}]] — {one-line description}
+- [[{domain}]]
 ```
 
-If a `## Domains` section already exists, append under it.
+Do not list agents, descriptions, or metadata in the index entry. Just the wikilink.
 
 ### 6. Report
 
-Tell the user:
+Print this (fill in domain name and agent count):
 ```
-Domain scaffolded:
-  wiki/domains/{domain}.md        ← fill in your context here
-  wiki/agents/{domain}-{role}.md  ← one per agent role
+Your **{domain}** team is assembled. {n} agents recruited, domain file created.
 
-Next steps:
-1. Edit wiki/domains/{domain}.md — write the real-world context only you know
-2. Edit each agent stub — add role-specific knowledge
-3. Run /teams-deploy {domain} <repo-path> to wire it into a repo
+They don't know anything yet. Teach them:
+1. Edit `wiki/domains/{domain}.md` — write the context only you know
+2. Edit each agent stub — define what they specialize in
+3. Run `/teams-deploy` to activate them in this repo
 ```
 
 ---

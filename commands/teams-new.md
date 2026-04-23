@@ -109,7 +109,7 @@ domain: {domain}
 <!-- Scope limits. What this agent must NOT do. -->
 ```
 
-5. **Wire to index**: append to `{vault}/wiki/index.md` under `## Domains` (create section if missing)
+5. **Wire to index**: append one line to `{vault}/wiki/index.md` under `## Domains` (create section if missing). Format: `- [[{domain}]]` and nothing else. Do not list agents, descriptions, or metadata in the index entry.
 6. **Report**: print this (fill in the domain name and agent count):
 
 ```
