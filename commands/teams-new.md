@@ -17,7 +17,7 @@ If no domain name was provided, print: "What domain name? (lowercase, hyphenated
 ## Workflow
 
 1. **Resolve vault path** (check in order, use the first match):
-   1. Read `.claude/CLAUDE.md` or `CLAUDE.md` in the current project for a `Path:` line pointing to a vault (written by `/wiki` or `/teams-deploy`)
+   1. Read `.claude/CLAUDE.md` for a `vault:` line (written by `/teams-deploy`)
    2. Check if `./wiki/` exists in the current directory
    3. Ask the user to type a path
    Do not scan the home directory, environment variables, hooks, or session context for vault locations.

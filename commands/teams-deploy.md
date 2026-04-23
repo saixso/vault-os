@@ -16,16 +16,14 @@ If no domain name was provided, print: "What domain? (must match a domain file i
 ## Workflow
 
 1. **Resolve vault** (check in order, use the first match):
-   1. Read `.claude/CLAUDE.md` or `CLAUDE.md` in the current project for a `Path:` line pointing to a vault
+   1. Read `.claude/CLAUDE.md` for a `vault:` line (written by a previous deploy)
    2. Check if `./wiki/` exists in the current directory
    3. Ask the user to type a path
    Do not scan the home directory, environment variables, hooks, or session context for vault locations.
 
 2. **Verify domain exists**: check `{vault}/wiki/domains/{domain}.md`. If not found: "Domain '{domain}' not found. Run `/teams-new {domain}` first."
 
-3. **Resolve target repos**: if no repo paths were provided, print:
-   "Which repos? You can provide one or more paths, one per line. Or press enter to use the current directory."
-   Wait for the user to respond. Accept multiple paths (one per line, comma-separated, or space-separated).
+3. **Resolve target repos**: if no repo paths were provided, use the current directory. Do not prompt. Only ask if the user explicitly passes `--repos` or multiple paths as arguments.
 
 4. **For each repo**, do the following:
 
@@ -38,9 +36,14 @@ If no domain name was provided, print: "What domain? (must match a domain file i
       - Different domain: note "switching from {other} to {domain}".
       - No domain line: add it.
 
-   d. **Write domain reference**: add or update `domain: {domain}` at the top of the CLAUDE.md. Preserve all existing content.
+   d. **Write domain reference and vault path**: ensure `.claude/CLAUDE.md` has both lines at the top:
+   ```
+   domain: {domain}
+   vault: {absolute-vault-path}
+   ```
+   If either line already exists, update it. Preserve all other existing content below.
 
-   e. **Update .gitignore**: if using `.claude/CLAUDE.md`, ensure it's excluded in `{repo}/.gitignore`. If missing, append it.
+   e. **Update .gitignore**: ensure `.claude/CLAUDE.md` is excluded in `{repo}/.gitignore`. If missing, append it.
 
 5. **Verify Domain Router hook** (once, not per repo): check `~/.claude/settings.json` for a SessionStart hook that reads domain files. Warn if missing.
 
