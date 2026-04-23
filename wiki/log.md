@@ -25,6 +25,15 @@ Parse recent entries: `grep "^## \[" wiki/log.md | head -10`
 
 ---
 
+## [2026-04-23] save | DragonScale Phase 1 — wiki-fold skill shipped
+- Type: skill
+- Location: skills/wiki-fold/SKILL.md, skills/wiki-fold/references/fold-template.md
+- Scope: flat extractive fold over raw wiki/log.md entries. Dry-run default via Bash stdout (no Write tool, avoids PostToolUse hook residue). Structural idempotency via deterministic fold_id. Duplicate-range detection. Fold-of-folds explicitly out of scope.
+- Review rounds: 3 codex exec adversarial passes. Round 1: 1 refine + 6 reject across 7 items (allowed-tools, hook-mutation risk, idempotency claim, dry-run faithfulness, children structure, Mechanism 1 coverage, auto-commit conflict). Round 2: 6 accept + 1 reject (25/26 count inversion). Round 3 (item 4 only): accept.
+- Final verdict: 7/7 accept.
+- Dry-run artifact: /tmp/wiki-fold-dry-run-v2.md (not committed). fold_id: fold-k3-from-2026-04-10-to-2026-04-23-n8.
+- Phase 1 complete. Phase 2 (content-addressable paths) gated on human approval.
+
 ## [2026-04-23] save | DragonScale Memory v0.2 — post-adversarial-review
 - Type: concept revision
 - Location: wiki/concepts/DragonScale Memory.md
