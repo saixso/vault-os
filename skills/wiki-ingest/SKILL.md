@@ -198,7 +198,7 @@ else
 fi
 ```
 
-When `DRAGONSCALE_ADDRESSES=0`, pages are created without an `address:` frontmatter field. `wiki-lint` treats these as legacy/unaddressed (informational). This preserves default plugin behavior for vaults that have not adopted DragonScale.
+When `DRAGONSCALE_ADDRESSES=0`, pages are created without an `address:` frontmatter field, and `wiki-lint`'s Address Validation section is skipped entirely (missing addresses are not flagged in any severity). This preserves default plugin behavior for vaults that have not adopted DragonScale.
 
 When `DRAGONSCALE_ADDRESSES=1`, proceed with the rest of this section.
 
