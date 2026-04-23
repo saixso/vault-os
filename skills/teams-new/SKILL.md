@@ -1,29 +1,27 @@
 ---
 name: teams-new
 description: >
-  Scaffold a new domain team — creates the domain file, agent stubs, and wiring.
-  The domain file is where you write real-world context: how things work, what breaks,
-  conventions that aren't in code. Agents pull from this + the wiki at runtime.
-  Triggers on: "teams new", "teams:new", "/teams-new", "create a team",
+  Scaffold a new domain — creates the domain file and wires it to the vault index.
+  The domain file is the knowledge overlay: context that makes every agent session smarter.
+  Agents come from other plugins (e.g. spoton-ai-dev-enablement). This skill only creates
+  the knowledge layer.
+  Triggers on: "teams new", "teams:new", "/teams-new", "create a domain",
   "scaffold a domain", "new domain".
 allowed-tools: Read Write Edit Glob Grep Bash
 ---
 
-# teams-new: Scaffold a Domain Team
+# teams-new: Scaffold a Domain
 
-Create the foundation for a domain team: a domain file you fill with real context, agent definitions, and the wiring that connects them to the vault.
+Create the knowledge layer for a domain: a domain file you fill with real context, wired to the vault index.
 
-The domain file is manually written — only you know the mental model, failure modes, and conventions that matter. This skill gives you the right structure and wires it to the wiki.
+The domain file is the overlay. Agent pipelines (python-dev, go-dev, etc.) come from other plugins. This skill creates the context they all share.
 
 ---
 
 ## Inputs
 
-- **domain name** (required): lowercase, hyphenated (e.g., `payments`, `onboarding`, `billing`)
-- **vault path** (optional): check if `./wiki/` exists in the current directory. If yes, use it. If no, ask the user to provide a path. Do not infer vault locations from environment, hooks, or session context.
-- **agents** (optional): list of agent roles to scaffold (e.g., `python-engineer`, `network-engineer`)
-
-If the user doesn't provide agents, ask: "What agent roles does this domain need?"
+- **domain name** (required): lowercase, hyphenated (e.g., `payments`, `onboarding`)
+- **vault path** (optional): resolved automatically (see below)
 
 ---
 
@@ -32,8 +30,9 @@ If the user doesn't provide agents, ask: "What agent roles does this domain need
 ### 1. Resolve the vault path
 
 Check in order:
-1. `./wiki/` in current directory
-2. Ask the user
+1. Read `.claude/CLAUDE.md` for a `vault:` line (written by `/teams-deploy`)
+2. `./wiki/` in current directory
+3. Ask the user
 
 ### 2. Check for existing domain
 
@@ -53,9 +52,6 @@ updated: {today}
 tags:
   - type/domain
   - {domain}
-agents:
-  - {domain}-{agent1}
-  - {domain}-{agent2}
 mcps: []
 process_skills: []
 discipline_skills: []
@@ -97,58 +93,23 @@ delivery:
 <!-- Link wiki pages agents should pull when they need depth. These are NOT loaded at startup. -->
 ```
 
-### 4. Create agent stubs
+### 4. Wire the domain to the vault index
 
-For each agent role, write `{vault}/wiki/agents/{domain}-{role}.md`:
+Append `- [[{domain}]]` to `{vault}/wiki/index.md` under `## Domains` (create section if missing). Just the wikilink.
 
-```yaml
----
-type: entity
-title: "{domain}-{role}"
-status: seed
-created: {today}
-updated: {today}
-tags:
-  - type/entity
-  - agent
-  - {domain}
-domain: {domain}
----
+### 5. Report
 
-# {domain}-{role}
-
-## Role
-<!-- What this agent specializes in within the {domain} domain -->
-
-## Knowledge
-<!-- Domain-specific patterns, tools, and conventions this agent should know -->
-
-## Tools & MCPs
-<!-- Which MCP servers and tools this agent needs access to -->
-
-## Constraints
-<!-- What this agent must NOT do. Scope limits. -->
 ```
+Domain **{domain}** created at `wiki/domains/{domain}.md`
 
-### 5. Wire the domain to the vault index
+This file is empty. Only you can fill it — write the context that isn't in the code:
+  - Mission, ownership boundaries, how things actually work
+  - What breaks and why, vendor landscape, team knowledge
+  - Conventions, stakeholders, current focus
 
-Append one line to `{vault}/wiki/index.md` under `## Domains` (create the section if missing):
-```
-- [[{domain}]]
-```
+Then run `/teams-deploy {domain}` to wire it into your repos.
 
-Do not list agents, descriptions, or metadata in the index entry. Just the wikilink.
-
-### 6. Report
-
-Print this (fill in domain name and agent count):
-```
-Your **{domain}** team is assembled. {n} agents recruited, domain file created.
-
-They don't know anything yet. Teach them:
-1. Edit `wiki/domains/{domain}.md` — write the context only you know
-2. Edit each agent stub — define what they specialize in
-3. Run `/teams-deploy` to activate them in this repo
+Agent pipelines (python-dev, go-dev, etc.) pick up domain context automatically via SessionStart.
 ```
 
 ---
@@ -158,6 +119,6 @@ They don't know anything yet. Teach them:
 - Domain file MUST use HTML comments as placeholders, not lorem ipsum
 - Never generate fake domain content — the user writes real context
 - Keep frontmatter flat YAML (no nesting beyond one level for delivery)
-- Agent stubs are wiki pages (in wiki/agents/), not Claude Code agent definitions
+- Do NOT create agent stubs or agent files. Agents come from other plugins. This skill only creates the knowledge layer.
 - Always check for existing domain before creating
 - Token budget: domain file should stay under ~500 tokens when filled in
