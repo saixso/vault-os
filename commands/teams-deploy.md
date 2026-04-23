@@ -31,10 +31,7 @@ If no domain name was provided, print: "What domain? (must match a domain file i
 
    a. **Verify it's a git repo**: `git -C {repo} rev-parse --git-dir`. If not: print "{repo} is not a git repo, skipping." and continue.
 
-   b. **Check for existing CLAUDE.md**: look for both `{repo}/.claude/CLAUDE.md` and `{repo}/CLAUDE.md`.
-      - If `.claude/CLAUDE.md` exists, use that.
-      - Else if `CLAUDE.md` exists at repo root, use that.
-      - Else create `{repo}/.claude/CLAUDE.md`.
+   b. **Always use `.claude/CLAUDE.md`** for the domain line. The SessionStart Domain Router hook reads from `.claude/CLAUDE.md`, not root `CLAUDE.md`. Create `{repo}/.claude/` directory if it doesn't exist. If `.claude/CLAUDE.md` already exists, preserve its content. Never write the domain line to root `CLAUDE.md`.
 
    c. **Check current domain**:
       - Same domain already set: note "already wired" and skip.
@@ -64,7 +61,7 @@ Domain Router will load `wiki/domains/{domain}.md` on every SessionStart in thes
 - Never commit `.claude/CLAUDE.md` (local-only)
 - Never modify the domain file itself
 - Preserve existing CLAUDE.md content (only add/update the `domain:` line)
-- If a repo already has a root `CLAUDE.md`, use it instead of creating `.claude/CLAUDE.md`
+- Always write the domain line to `.claude/CLAUDE.md`, never to root `CLAUDE.md` (the hook reads `.claude/CLAUDE.md`)
 
 Usage:
 - `/teams-deploy <domain>` — deploy to current repo
