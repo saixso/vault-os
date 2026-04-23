@@ -20,7 +20,7 @@ The domain file is the 500-token mental model. This skill keeps it current.
 ## Inputs
 
 - **domain name** (required): must match an existing domain file
-- **vault path** (optional): defaults to wiki vault in current project or `~/Documents/thirdeye`
+- **vault path** (optional): defaults to `./wiki/` in the current project, otherwise ask the user
 
 ---
 
@@ -73,7 +73,7 @@ New pages:
   + wiki/questions/why-dedup-fails.md (insight, saved 2026-04-22)
 
 Updated pages:
-  ~ wiki/entities/Spotti.md           (updated 2026-04-21)
+  ~ wiki/entities/auth-service.md     (updated 2026-04-21)
 
 Suggestions:
   → Add [[new-service]] to vault references

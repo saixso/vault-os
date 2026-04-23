@@ -19,8 +19,8 @@ The domain file is manually written — only you know the mental model, failure 
 
 ## Inputs
 
-- **domain name** (required): lowercase, hyphenated (e.g., `clientenv`, `payments`, `onboarding`)
-- **vault path** (optional): defaults to the wiki vault in the current project, or `~/Documents/thirdeye` if no local vault exists
+- **domain name** (required): lowercase, hyphenated (e.g., `payments`, `onboarding`, `billing`)
+- **vault path** (optional): defaults to `./wiki/` in the current project, otherwise ask the user
 - **agents** (optional): list of agent roles to scaffold (e.g., `python-engineer`, `network-engineer`)
 
 If the user doesn't provide agents, ask: "What agent roles does this domain need?"
@@ -33,8 +33,7 @@ If the user doesn't provide agents, ask: "What agent roles does this domain need
 
 Check in order:
 1. `./wiki/` in current directory
-2. `~/Documents/thirdeye/wiki/`
-3. Ask the user
+2. Ask the user
 
 ### 2. Check for existing domain
 
