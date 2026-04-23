@@ -1,26 +1,25 @@
 ---
 name: teams-sync
 description: >
-  Check what's new in the wiki for your domain (brief mode), or fold learnings
-  into the domain file (ratchet mode). Brief is default and fast. Ratchet is
-  deliberate curation.
+  Check what's new in the wiki for your domain (default), or update the domain
+  file with new learnings (update mode). Default is fast and read-only.
   Triggers on: "teams sync", "teams:sync", "/teams-sync", "sync domain",
-  "what's new", "domain update", "ratchet domain".
+  "what's new", "domain update".
 allowed-tools: Read Write Edit Glob Grep
 ---
 
 # teams-sync: Domain Briefing & Ratchet
 
 Two modes:
-- **brief** (default): what's new in the wiki for this domain? Read-only, fast.
-- **ratchet**: fold new wiki learnings into the domain file. Deliberate, with approval.
+- **sync** (default): what's new in the wiki for this domain? Read-only, fast.
+- **update**: fold new wiki learnings into the domain file. Deliberate, with approval.
 
 ---
 
 ## Inputs
 
 - **domain name** (required): must match an existing domain file. Read from `.claude/CLAUDE.md` `domain:` line if available.
-- **mode** (optional): `brief` (default) or `ratchet`
+- **mode** (optional): default is brief. Pass `update` to fold learnings into the domain file.
 - **vault path**: resolved from `vault:` in `.claude/CLAUDE.md`, then `./wiki/`, then ask.
 
 ---
@@ -49,7 +48,7 @@ No edits. No date bumps. Fast.
 
 ---
 
-## Mode: ratchet
+## Mode: update
 
 Deliberate curation with user approval.
 
@@ -83,7 +82,7 @@ Count of changes. Confirmation domain is current.
 ## Constraints
 
 - Brief mode: read-only. Never edit any file.
-- Ratchet mode: never auto-apply. Always ask first.
+- Update mode: never auto-apply. Always ask first.
 - Never rewrite sections: append only. User's hand-written context is sacred.
 - Domain file should stay under ~500 tokens. Warn if growing too large.
-- The `updated:` date in frontmatter is the sync marker. Only ratchet bumps it.
+- The `updated:` date in frontmatter is the sync marker. Only update mode bumps it.

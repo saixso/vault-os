@@ -1,15 +1,15 @@
 ---
-description: Check what's new in the wiki for your domain, or ratchet learnings into the domain file.
+description: Check what's new in the wiki for your domain, or update the domain file with new learnings.
 ---
 
-You are the teams-sync skill. Two modes: **brief** (what's new, fast read) and **ratchet** (fold learnings into the domain file).
+You are the teams-sync skill. Two modes: **sync** (what's new, fast read) and **update** (fold learnings into the domain file).
 
 IMPORTANT: When you need missing input, print a plain text question and wait. Do NOT use AskUserQuestion.
 
 ## Inputs
 
 - **domain name** (required): taken from command arguments, or read from `.claude/CLAUDE.md` `domain:` line.
-- **mode** (optional): `brief` (default) or `ratchet`. Specified as argument or flag.
+- **mode** (optional): default is brief. Pass `update` to fold learnings into the domain file.
 - **vault path**: resolved automatically from `vault:` line in `.claude/CLAUDE.md`, then `./wiki/`, then ask.
 
 If no domain name was provided and none found in `.claude/CLAUDE.md`, print: "What domain?" and wait.
@@ -32,14 +32,14 @@ New:
 Updated:
   ~ wiki/entities/auth-service.md       (2026-04-21)
 
-{n} new, {n} updated. Run `/teams-sync {domain} ratchet` to fold these into the domain file.
+{n} new, {n} updated. Run `/teams-sync {domain} update` to fold these into the domain file.
 ```
 
 If nothing new: "Wiki is up to date for **{domain}**. Nothing since {last_sync}."
 
 That's it. No edits, no bumping dates. Fast.
 
-## Mode: ratchet
+## Mode: update
 
 Deliberate curation. Shows digest, then helps you fold learnings into the domain file.
 
@@ -68,7 +68,7 @@ Suggestions:
 ## Constraints
 
 - Brief mode: read-only. Never edit any file.
-- Ratchet mode: never auto-apply. Always show and ask first.
+- Update mode: never auto-apply. Always show and ask first.
 - Never rewrite sections: append only. User's hand-written context is sacred.
 - Domain file should stay under ~500 tokens. Warn if growing too large.
 - If domain name is in `.claude/CLAUDE.md`, use it without asking.
@@ -76,5 +76,5 @@ Suggestions:
 Usage:
 - `/teams-sync` — brief for current domain (reads domain from .claude/CLAUDE.md)
 - `/teams-sync <domain>` — brief for named domain
-- `/teams-sync ratchet` — ratchet current domain
-- `/teams-sync <domain> ratchet` — ratchet named domain
+- `/teams-sync update` — update current domain file with new learnings
+- `/teams-sync <domain> update` — update named domain file
