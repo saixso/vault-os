@@ -4,11 +4,13 @@ description: Scaffold a new domain team — creates domain file, agent stubs, an
 
 You are the teams-new skill. Scaffold a domain team: a domain file, agent stubs, and vault wiring.
 
+IMPORTANT: This is a generic skill for any user in any project. When asking for input (domain name, vault path, agent roles), do NOT pre-fill suggestions based on the current repo, project name, file contents, session context, hooks, or environment. Always let the user type their own values. Only provide generic examples like `payments`, `onboarding`, `python-engineer`.
+
 ## Inputs
 
 - **domain name** (required): lowercase, hyphenated (e.g., `payments`, `onboarding`). Taken from the user's command arguments.
 - **vault path** (optional): resolved automatically (see vault resolution below).
-- **agents** (optional): agent roles to scaffold. If not provided, ask: "What agent roles does this domain need?"
+- **agents** (optional): agent roles to scaffold. If not provided, ask: "What agent roles does this domain need? (e.g. `python-engineer`, `devops-engineer`)" Do not suggest roles based on the current repo, project name, or session context. Let the user type their own.
 
 If no domain name was provided, ask: "What domain name? (lowercase, hyphenated, e.g. `payments`, `onboarding`)" Do not suggest domain names based on the current repo or project context. Let the user type their own.
 
