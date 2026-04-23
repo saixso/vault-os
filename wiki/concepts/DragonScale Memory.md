@@ -144,17 +144,28 @@ The tiling property says the same concept should live in one canonical page. Enf
 
 ## Mechanism 4 — Boundary-First Autoresearch
 
-> **Status: NOT IMPLEMENTED** (as of 2026-04-24). This section is a design sketch only. `skills/autoresearch/SKILL.md` does not currently compute `boundary_score` and does not consume frontier pages when invoked without a topic. Treat this section as a proposal for a future Phase 4, not shipped behavior.
+> **Status: shipped (Phase 4, opt-in)** as of 2026-04-24. Implementation: `scripts/boundary-score.py`. Integration: `skills/autoresearch/SKILL.md` Topic Selection section B. Tests: `tests/test_boundary_score.py`.
 
-Boundary pages (high out-degree relative to in-degree, recency-weighted) are the vault's frontier. Extend `autoresearch` with a score:
+Boundary pages (high out-degree relative to in-degree, recency-weighted) are the vault's frontier. `/autoresearch` invoked without a topic reads the top-5 boundary pages and offers them as research candidates; the user selects one (or types a free-text topic, or declines all and falls back to the original ask-user mode).
+
+**Formula (exact)**:
 
 ```
-boundary_score(page) = (out_degree - in_degree) * recency_weight
+out_degree(p) = count of distinct wikilinks in body of p that resolve to scoreable pages
+in_degree(p)  = count of distinct scoreable pages whose body contains a wikilink to p
+recency_weight(p) = max(0.1, exp(-days_since_updated / 30))
+boundary_score(p) = (out_degree - in_degree) * recency_weight
 ```
 
-When `/autoresearch` is invoked without a topic, it reads the top-K boundary pages and generates prompts from them.
+Scoreable = non-meta and non-fold pages; wikilinks inside fenced code blocks are ignored so documentation examples do not pollute the graph; symlinks and vault-root escapes are rejected. See `scripts/boundary-score.py:RECENCY_HALFLIFE_DAYS` and `:RECENCY_FLOOR` for the tunable constants.
 
-**Honest labeling**: this mechanism is **agenda control**, not pure memory. It shapes what the agent researches next. It is included in DragonScale because it is a direct consequence of the dragon-curve boundary analogy, and because it pairs naturally with folds (freshly folded pages have low out-degree; frontier pages are pre-fold). But the "memory only, not reasoning" framing does not cover it. Users who want a strict memory-layer subset should omit this mechanism.
+**Honest labeling**: this mechanism is **agenda control**, not pure memory. It shapes what the agent researches next. It is included in DragonScale because it is a direct consequence of the dragon-curve boundary analogy, and because it pairs naturally with folds (freshly folded pages have low out-degree; frontier pages are pre-fold). But the "memory only, not reasoning" framing does not cover it. Users who want a strict memory-layer subset should omit this mechanism (simply do not invoke `/autoresearch` without a topic, or do not set up `scripts/boundary-score.py`).
+
+**What is NOT included**:
+- No auto-triggering. `/autoresearch` is still user-invoked.
+- No persistent boundary-score cache. Scoring is O(N * avg_links) and runs on every invocation from fresh wiki/ state.
+- No integration with folds or addresses. Pure graph analysis on the wikilink graph.
+- No automatic topic selection without user confirmation. The helper presents choices; the user picks.
 
 ---
 
