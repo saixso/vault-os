@@ -39,7 +39,7 @@ Navigation: [[index]] | [[log]] | [[overview]]
 - **Skills**: 11 (wiki, wiki-ingest, wiki-query, wiki-lint, wiki-fold, save, autoresearch, canvas, defuddle, obsidian-bases, obsidian-markdown)
 - **Scripts**: `scripts/allocate-address.sh`, `scripts/tiling-check.py` (both opt-in; feature-detected by skills)
 - **Setup**: `bin/setup-vault.sh` (base vault), `bin/setup-dragonscale.sh` (opt-in DragonScale), `bin/setup-multi-agent.sh` (multi-agent bootstrap)
-- **Tests**: `make test` runs `tests/test_allocate_address.sh` + `tests/test_tiling_check.py`. Zero ollama dependency for core tests.
+- **Tests**: `make test` runs `tests/test_allocate_address.sh`, `tests/test_tiling_check.py`, `tests/test_boundary_score.py`. Zero ollama dependency for core tests.
 - **Hooks**: 4 (SessionStart, PostCompact, PostToolUse [stages wiki/, .raw/, .vault-meta/], Stop)
 
 ## DragonScale Mechanisms
