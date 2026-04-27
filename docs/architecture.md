@@ -34,10 +34,15 @@ vault-os/
 
 | Layer | Source | Can modify? |
 |-------|--------|-------------|
-| skills/, hooks/, agents/, commands/ | Upstream (claude-obsidian) | No — sync breaks |
+| Existing skills/, hooks/, agents/, commands/ | Upstream (claude-obsidian) | No — sync breaks |
 | .claude-plugin/, README, ATTRIBUTION | Branded | Yes — our 4 files |
+| New `skills/<name>/` directories | vault-os custom | Yes — add new dirs |
+| New `agents/<name>.md` files | vault-os custom | Yes — add new files |
+| New `commands/<name>.md` files | vault-os custom | Yes — add new files |
 | harness/ | vault-os custom | Yes — new dir |
 | docs/ | vault-os custom | Yes — new dir |
+
+Custom skills/agents are added as **new files alongside upstream**. Both are auto-discovered by Claude Code and shipped together as one plugin.
 
 ## Per-Vault Runtime (not committed)
 

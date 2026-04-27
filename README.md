@@ -1,7 +1,7 @@
 
 # vault-os
 
-Opinionated Claude Code + Obsidian knowledge companion. A persistent, compounding wiki vault with harness and hooks.
+A schema-agnostic context bus for AI agents. Load the right knowledge, from the right sources, in the right order — so every token in the context window earns its keep.
 
 **Fork of [claude-obsidian](https://github.com/AgriciDaniel/claude-obsidian) by [AgriciDaniel](https://github.com/AgriciDaniel).** Based on [Andrej Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
@@ -16,79 +16,98 @@ A running notetaker that builds and maintains a persistent, compounding wiki vau
 
 ---
 
-## What Changed From Upstream
+## The Problem
 
-- Rebranded to `vault-os`
-- Opinionated defaults for infrastructure/platform engineering workflows
-- Harness and hooks layer (coming in v2.1)
-- Upstream syncs via `git fetch upstream`
+AI agents start blank. Every session, you re-explain the same context: why you're building this way, what constraints matter, what the business needs. The agent writes correct code but not the *right* code — because it's missing the human layer.
 
-Everything else is the same as [claude-obsidian v1.4.3](https://github.com/AgriciDaniel/claude-obsidian).
+Docs tell agents *how*. Repo configs tell agents *where*. Nothing tells them *why*.
+
+## The Vision
+
+vault-os composes agent context windows from three non-overlapping tiers:
+
+| Tier | Answers | Source |
+|------|---------|--------|
+| **Local harness** | *Where* — repo-specific facts, file paths, conventions | CLAUDE.md, `.vault-os.yml` |
+| **Structured knowledge API** | *How* — domain reference, docs, runbooks | Any MCP server or docs API |
+| **Vault** | *Why* — business context, axioms, intent, priorities | Obsidian vault |
+
+With all three tiers composed, multi-turn disambiguation loops collapse into single turns.
+
+### Schema-agnostic
+
+The plugin has zero opinions on how you organize your vault. You define the schema — DDD bounded contexts, flat files, topic clusters, whatever fits your mental model. The plugin loads what you point it at, respects the order and budget, and gets out of the way.
+
+```yaml
+# .vault-os.yml — you define the structure
+vault: ~/my-vault
+context:
+  - path: axioms.md
+  - path: domains/backend/context.md
+  - api: my-docs-server
+budget:
+  per_source: 2000
+  total: 10000
+```
+
+### Swappable middle tier
+
+Same architecture, different domains. Swap the structured API and the pattern serves any use case:
+
+| Use case | Structured API | Vault context |
+|----------|---------------|---------------|
+| Infrastructure | infra docs MCP | business priorities, team ownership |
+| ML project | model/dataset docs | why this model, constraints |
+| Incident response | monitoring dashboards | who's on call, blast radius |
+
+The vault is the constant. The API tier is swappable. The local harness is throwaway.
+
+### Compounding, not accumulating
+
+Most knowledge systems accumulate notes and RAG from scratch every time. vault-os compounds — each new source builds on existing wiki pages. Context-aware read-before-write.
+
+---
+
+## What It Does Today
+
+A Claude Code plugin that manages a persistent, compounding wiki vault in Obsidian.
+
+| Command | What it does |
+|---------|------------|
+| `/wiki` | Setup, scaffold, or continue where you left off |
+| `ingest [file]` | Read source, create wiki pages, update index |
+| `what do you know about X?` | Query wiki, synthesize answer |
+| `/save` | File current conversation as a wiki note |
+| `/autoresearch [topic]` | Autonomous research loop: search, fetch, synthesize |
+| `lint the wiki` | Health check: orphans, dead links, gaps |
+
+10 skills included. See [upstream docs](https://github.com/AgriciDaniel/claude-obsidian) for full documentation.
+
+---
+
+## Roadmap
+
+1. **Wiki Engine** (done) — Ingest, query, lint, index. Compounding knowledge base.
+2. **Plugin + Skills** (current) — Claude Code plugin. 10 skills for vault operations.
+3. **Context Bus** — Three-tier architecture. `.vault-os.yml` declaration. Schema-agnostic loading with token budgets.
+4. **Public Release** — End-to-end install. Community templates. Drop vault-os on any vault.
 
 ---
 
 ## Quick Start
 
-### Install as Claude Code plugin
-
 ```bash
-# Add the marketplace
+# Install as Claude Code plugin
 claude plugin marketplace add saixso/vault-os
-
-# Install the plugin
 claude plugin install vault-os@vault-os-marketplace
 ```
 
-In any Claude Code session: `/wiki`. Claude walks you through vault setup.
-
-### Clone as vault
-
-```bash
-git clone https://github.com/saixso/vault-os
-cd vault-os
-bash bin/setup-vault.sh
-```
-
-Open in Obsidian. Open Claude Code in the same folder. Type `/wiki`.
-
----
-
-## Commands
-
-| You say | Claude does |
-|---------|------------|
-| `/wiki` | Setup check, scaffold, or continue where you left off |
-| `ingest [file]` | Read source, create wiki pages, update index and log |
-| `ingest all of these` | Batch process multiple sources with parallel agents |
-| `what do you know about X?` | Read index > relevant pages > synthesize answer |
-| `/save` | File the current conversation as a wiki note |
-| `/autoresearch [topic]` | Autonomous research loop: search, fetch, synthesize, file |
-| `/canvas` | Visual canvas layer for images, text, PDFs, wiki pages |
-| `lint the wiki` | Health check: orphans, dead links, gaps, suggestions |
-
----
-
-## Skills
-
-10 skills included: wiki orchestrator, wiki-ingest, wiki-query, wiki-lint, save, autoresearch, canvas, obsidian-markdown, obsidian-bases, defuddle.
-
-See [upstream docs](https://github.com/AgriciDaniel/claude-obsidian) for full skill documentation.
-
----
-
-## Syncing With Upstream
-
-```bash
-git fetch upstream
-git merge upstream/main
-```
+In any session: `/wiki`.
 
 ---
 
 ## Attribution
 
-This project is a fork of [claude-obsidian](https://github.com/AgriciDaniel/claude-obsidian) by [AgriciDaniel](https://github.com/AgriciDaniel), licensed under MIT. See [ATTRIBUTION.md](ATTRIBUTION.md) for full credits.
+Fork of [claude-obsidian](https://github.com/AgriciDaniel/claude-obsidian) by [AgriciDaniel](https://github.com/AgriciDaniel), licensed under MIT. See [ATTRIBUTION.md](ATTRIBUTION.md).
 
----
-
-*Built by [saixso](https://github.com/saixso). Forked from [claude-obsidian](https://github.com/AgriciDaniel/claude-obsidian) by [AgriciDaniel](https://agricidaniel.com/about).*
+*Built by [saixso](https://github.com/saixso).*
