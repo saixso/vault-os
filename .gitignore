@@ -33,6 +33,20 @@ node_modules/
 .env.local
 *.local.md
 
+# Private keys and credentials (defense-in-depth, catches accidental drops)
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
+credentials*
+secrets.y*ml
+auth.json
+
 # Personal files dropped into vault root by Obsidian (don't commit these)
 WIKI*.md
 PROMPT.md
@@ -87,3 +101,9 @@ claude-obsidian-archive/
 
 # User-specific attachments
 _attachments/
+
+# DragonScale runtime lockfiles and local caches (flock + embedding cache; state files like counter.txt and thresholds.json ARE tracked)
+.vault-meta/.address.lock
+.vault-meta/.tiling.lock
+.vault-meta/tiling-cache.json
+.vault-meta/tiling-cache.*.tmp

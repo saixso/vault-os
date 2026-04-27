@@ -2,7 +2,7 @@
 
 This repo is a Claude Code plugin **and** an Obsidian vault that builds persistent, compounding knowledge bases using Andrej Karpathy's LLM Wiki pattern. It works with **any AI coding agent** that supports the Agent Skills standard, including Codex CLI, OpenCode, and similar.
 
-Originally built for Claude Code, the skills now follow the cross-platform Agent Skills spec. Frontmatter uses only `name` and `description` (no Claude-specific extensions).
+Originally built for Claude Code, the skills follow the cross-platform Agent Skills spec. Newer skills (`wiki-fold`, `wiki-ingest`, `wiki-lint`) use only `name` and `description` frontmatter (kepano convention). Some older skills still carry an optional `allowed-tools` field for Claude Code compatibility; cross-platform agents that do not recognize it should ignore it.
 
 ## Skills Discovery
 
@@ -30,6 +30,7 @@ bash bin/setup-multi-agent.sh
 | `wiki-ingest` | ingest, ingest this url, ingest this image, batch ingest |
 | `wiki-query` | query, what do you know about, query quick:, query deep: |
 | `wiki-lint` | lint the wiki, health check, find orphans |
+| `wiki-fold` | fold the log, run a fold, log rollup (DragonScale Mechanism 1, opt-in) |
 | `save` | /save, file this conversation |
 | `autoresearch` | autoresearch, autonomous research loop |
 | `canvas` | /canvas, add to canvas, create canvas |

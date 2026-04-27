@@ -133,7 +133,7 @@ The user-facing feedback was clear: "make it proper and natural". The scrubbed p
 
 ## Security: Email Removal and Git History Rewrite
 
-A placeholder email `daniel@avalonreset.pro` (which the user confirmed does not exist as a real address) was in `marketplace.json` plus two docs. Removed from working tree first, then rewrote git history to scrub it from all commits.
+A placeholder email `[scrubbed-email]` (which the user confirmed does not exist as a real address) was in `marketplace.json` plus two docs. Removed from working tree first, then rewrote git history to scrub it from all commits.
 
 **Tool**: `git filter-repo` (available at `~/.pyenv/versions/3.12.4/bin/git-filter-repo`).
 
@@ -142,7 +142,7 @@ A placeholder email `daniel@avalonreset.pro` (which the user confirmed does not 
 1. `git filter-repo --replace-text /tmp/email-replacements.txt --force` scrubs blob contents across all commits.
 2. `git filter-repo --replace-message /tmp/email-msg-replacements.txt --force` scrubs commit messages. The first pass caught 3 occurrences in file contents but missed 1 occurrence in a commit subject line. The second pass caught that.
 
-**Replacement string**: `daniel@avalonreset.pro==>***REMOVED***`
+**Replacement string**: `[scrubbed-email]==>***REMOVED***`
 
 **Post-rewrite actions**:
 - Re-added the `origin` remote that filter-repo removes for safety
@@ -150,9 +150,9 @@ A placeholder email `daniel@avalonreset.pro` (which the user confirmed does not 
 - Force-pushed main plus both tags (`v1.1` and `v1.4.0`)
 - Updated the v1.4.0 GitHub release notes to include a "Security Note" section
 
-**Verification**: grep across all refs, all blobs, all commit messages returned zero matches for `daniel@avalonreset`. GitHub release bodies checked for same: both v1.1 and v1.4.0 release pages clean.
+**Verification**: grep across all refs, all blobs, all commit messages returned zero matches for the scrubbed email string. GitHub release bodies checked for same: both v1.1 and v1.4.0 release pages clean.
 
-**Caveat for other clones**: history rewrite means every commit hash changed. Any other machine or private `community` remote at `avalonreset-pro/claude-obsidian` that has the repo still contains the old history. Those need `git fetch && git reset --hard origin/main` or a force push to clean up.
+**Caveat for other clones**: history rewrite means every commit hash changed. Any other machine or private `community` remote that has the repo still contains the old history. Those need `git fetch && git reset --hard origin/main` or a force push to clean up.
 
 ## v1.4.1: Plugin Install Command Hotfix
 
