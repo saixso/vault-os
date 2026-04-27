@@ -1,6 +1,88 @@
 # Changelog
 
-All notable changes to claude-obsidian. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
+All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
+
+## [2.3.1] - 2026-04-27 (vault-os)
+
+### Fixed
+
+- `skills/teams-sync`: renamed `ratchet` mode to `update` for clarity.
+
+## [2.3.0] - 2026-04-27 (vault-os)
+
+### Added
+
+- `skills/teams-sync`: `brief` and `ratchet` modes for faster domain syncs.
+- Domain template now includes agent instructions section.
+
+## [2.2.0] - 2026-04-27 (vault-os)
+
+### Changed
+
+- `skills/teams-new`: knowledge-only scaffolding — no longer generates agent stubs. Agent definitions come from other plugins.
+
+## [2.1.4] - 2026-04-27 (vault-os)
+
+### Added
+
+- Vault path persisted in `.claude/CLAUDE.md` after first resolution. Defaults to cwd for repo-local vaults.
+
+## [2.1.3] - 2026-04-27 (vault-os)
+
+### Changed
+
+- `skills/teams-deploy`: domain context loads immediately after deploy (no session restart required).
+
+## [2.1.2] - 2026-04-27 (vault-os)
+
+### Fixed
+
+- `skills/teams-deploy`: domain line always written to `.claude/CLAUDE.md`, not the project root CLAUDE.md.
+
+## [2.1.1] - 2026-04-27 (vault-os)
+
+### Added
+
+- `skills/teams-deploy`: supports wiring a domain into multiple repos in one invocation. Checks for existing CLAUDE.md entries before writing.
+
+## [2.1.0] - 2026-04-27 (vault-os)
+
+### Fixed
+
+- `skills/wiki-lint`: clean index entries and consistent report message formatting.
+
+## [2.0.9] - 2026-04-27 (vault-os)
+
+### Changed
+
+- Domain template expanded with mission, ownership, vendors, team, and stakeholders sections.
+
+## [2.0.2–2.0.8] - 2026-04-27 (vault-os)
+
+### Fixed
+
+- `skills/teams-new`: prevent context-based domain name inference; use plain text prompts instead of AskUserQuestion; vault resolution checks CLAUDE.md Path first, then `./wiki/`, then asks.
+- Inline command workflows; remove hardcoded references.
+- Friendlier completion message on teams-new.
+
+## [2.0.0] - 2026-04-27 (vault-os)
+
+### Added
+
+- `skills/teams-new`: scaffold a new domain (knowledge-layer only).
+- `skills/teams-deploy`: wire a domain into a repository via CLAUDE.md.
+- `skills/teams-sync`: check what is new in the wiki for a domain, or update the domain file.
+- `skills/publish`: commit, version-bump, and push vault-os to the marketplace.
+- `skills/feature-request`: file feature ideas as GitHub issues on saixso/vault-os.
+- `docs/`: dev workflow, contributing guide, skill and agent templates.
+- `CLAUDE.md`: ownership model table, dev mode vs consumer mode workflow, release checklist.
+
+### Changed
+
+- README rewritten with context bus vision and three-tier architecture (local harness / structured knowledge API / vault).
+- Rebrand from claude-obsidian fork to vault-os with context bus as the north star.
+
+## [1.4.3] - prior (upstream baseline)
 
 ## [1.6.0] - 2026-04-24
 
