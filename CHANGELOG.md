@@ -12,6 +12,7 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
 
 - **Own brand.** Public README, plugin manifests, CITATION, CONTRIBUTING, and agent docs no longer present vault-os as an AgriciDaniel fork. GitHub About should point at `saixso/vault-os` only (see `docs/unfork-github.md` to drop the Fork badge).
 - **Independent product.** Ownership docs treat the full tree as vault-os owned.
+- **Feature honesty.** README and AGENTS.md advertise Core skills only (wiki loop + hot-sync). Teams/publish are gated; DragonScale, retrieve, wiki-mode, and autoresearch are labeled dormant/advanced. Context bus / `.vault-os.yml` moved to roadmap (not shipped).
 
 ## [2.4.0] - 2026-06-15 (vault-os)
 

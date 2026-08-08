@@ -4,6 +4,8 @@ This repo is a Claude Code + Cursor plugin **and** an Obsidian vault that builds
 
 Skills follow the cross-platform Agent Skills spec. Newer skills use only `name` and `description` frontmatter. Older skills may still carry an optional `allowed-tools` field for Claude Code; agents that do not recognize it should ignore it.
 
+**Prefer Core skills** unless the user explicitly asks for a gated or dormant capability.
+
 ## Skills Discovery
 
 All skills live in `skills/<name>/SKILL.md`. Discovery depends on the agent:
@@ -26,7 +28,9 @@ ln -s "$(pwd)/skills" ~/.codex/skills/vault-os
 ln -s "$(pwd)/skills" ~/.opencode/skills/vault-os
 ```
 
-## Available Skills
+## Skills
+
+### Core (default path)
 
 | Skill | Trigger phrases |
 |---|---|
@@ -34,15 +38,35 @@ ln -s "$(pwd)/skills" ~/.opencode/skills/vault-os
 | `wiki-ingest` | ingest, ingest this url, ingest this image, batch ingest |
 | `wiki-query` | query, what do you know about, query quick:, query deep: |
 | `wiki-lint` | lint the wiki, health check, find orphans |
-| `wiki-fold` | fold the log, run a fold, log rollup (DragonScale Mechanism 1, opt-in) |
-| `hot-sync` | /hot-sync, /hot, refresh hot cache, regenerate hot.md |
 | `save` | /save, file this conversation |
-| `autoresearch` | autoresearch, autonomous research loop |
-| `canvas` | /canvas, add to canvas, create canvas |
+| `hot-sync` | /hot-sync, /hot, refresh hot cache, regenerate hot.md |
 | `defuddle` | clean this url, defuddle |
+| `canvas` | /canvas, add to canvas, create canvas |
 | `obsidian-markdown` | obsidian syntax, wikilink, callout |
 | `obsidian-bases` | obsidian bases, .base file, dynamic table |
-| `teams-new` / `teams-deploy` / `teams-sync` | domain scaffolding and cross-repo context |
+
+### Gated (needs setup or maintainer context)
+
+| Skill | Gate |
+|---|---|
+| `teams-new` / `teams-deploy` / `teams-sync` | Requires `wiki/domains/` (create with `/teams-new`) |
+| `publish` | Maintainer: version bump + push this plugin |
+| `feature-request` | Maintainer: file ideas as GitHub issues |
+
+### Dormant / advanced (opt-in only)
+
+Do not lead with these. Use only when the user asks or a doc explicitly opts them in.
+
+| Skill | Notes |
+|---|---|
+| `wiki-fold` | DragonScale log rollups |
+| `wiki-retrieve` | Hybrid BM25 + rerank retrieval (opt-in setup) |
+| `wiki-mode` | LYT / PARA / Zettelkasten methodology modes |
+| `wiki-cli` | Obsidian CLI transport |
+| `autoresearch` | Autonomous research loop (easy to misuse as ecosystem watch) |
+| `think` | Niche thinking-loop helper |
+
+DragonScale / Compound Vault guides: `docs/dragonscale-guide.md`, `docs/compound-vault-guide.md`.
 
 ## Key Conventions
 
