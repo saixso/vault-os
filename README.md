@@ -1,6 +1,6 @@
 # vault-os
 
-A schema-agnostic context bus for AI agents. Load the right knowledge, from the right sources, in the right order — so every token in the context window earns its keep.
+A persistent, compounding Obsidian wiki for AI agents. Ingest sources, query what you know, save decisions, keep session context honest.
 
 Built by [saixso](https://github.com/saixso). Inspired by [Andrej Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
@@ -8,88 +8,33 @@ Built by [saixso](https://github.com/saixso). Inspired by [Andrej Karpathy's LLM
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-8B5CF6)](https://code.claude.com/docs/en/discover-plugins)
 [![Cursor](https://img.shields.io/badge/Cursor-plugin-1e1e1e)](https://cursor.com/docs/plugins)
 
-A running notetaker that builds and maintains a persistent, compounding wiki vault. Every source you add gets integrated. Every question you ask pulls from everything that has been read. Knowledge compounds like interest.
-
-**Skills for ingest, query, lint, save, teams, and hot-sync. Multi-agent support. Optional [DragonScale Memory](docs/dragonscale-guide.md)** (log folds, deterministic page addresses, semantic tiling lint, boundary-first autoresearch).
+Works with Claude Code, Cursor, and other agents that load Agent Skills. Knowledge compounds in `wiki/` instead of restarting from a blank chat every session.
 
 ---
 
-## The Problem
-
-AI agents start blank. Every session, you re-explain the same context: why you're building this way, what constraints matter, what the business needs. The agent writes correct code but not the *right* code — because it's missing the human layer.
-
-Docs tell agents *how*. Repo configs tell agents *where*. Nothing tells them *why*.
-
-## The Vision
-
-vault-os composes agent context windows from three non-overlapping tiers:
-
-| Tier | Answers | Source |
-|------|---------|--------|
-| **Local harness** | *Where* — repo-specific facts, file paths, conventions | CLAUDE.md, `.vault-os.yml` |
-| **Structured knowledge API** | *How* — domain reference, docs, runbooks | Any MCP server or docs API |
-| **Vault** | *Why* — business context, axioms, intent, priorities | Obsidian vault |
-
-With all three tiers composed, multi-turn disambiguation loops collapse into single turns.
-
-### Schema-agnostic
-
-The plugin has zero opinions on how you organize your vault. You define the schema — DDD bounded contexts, flat files, topic clusters, whatever fits your mental model. The plugin loads what you point it at, respects the order and budget, and gets out of the way.
-
-```yaml
-# .vault-os.yml — you define the structure
-vault: ~/my-vault
-context:
-  - path: axioms.md
-  - path: domains/backend/context.md
-  - api: my-docs-server
-budget:
-  per_source: 2000
-  total: 10000
-```
-
-### Swappable middle tier
-
-Same architecture, different domains. Swap the structured API and the pattern serves any use case:
-
-| Use case | Structured API | Vault context |
-|----------|---------------|---------------|
-| Infrastructure | infra docs MCP | business priorities, team ownership |
-| ML project | model/dataset docs | why this model, constraints |
-| Incident response | monitoring dashboards | who's on call, blast radius |
-
-The vault is the constant. The API tier is swappable. The local harness is throwaway.
-
-### Compounding, not accumulating
-
-Most knowledge systems accumulate notes and RAG from scratch every time. vault-os compounds — each new source builds on existing wiki pages. Context-aware read-before-write.
-
----
-
-## What It Does Today
-
-A Claude Code **and Cursor** plugin that manages a persistent, compounding wiki vault in Obsidian.
+## What it does (core)
 
 | Command | What it does |
-|---------|------------|
+|---------|--------------|
 | `/wiki` | Setup, scaffold, or continue where you left off |
-| `ingest [file]` | Read source, create wiki pages, update index |
-| `what do you know about X?` | Query wiki, synthesize answer |
-| `/save` | File current conversation as a wiki note |
-| `/hot-sync` | Regenerate `wiki/hot.md` from ground truth |
-| `/autoresearch [topic]` | Autonomous research loop: search, fetch, synthesize |
+| `ingest [file]` | Read a source, create wiki pages, update the index |
+| `what do you know about X?` | Query the wiki and synthesize an answer |
+| `/save` | File the current conversation as a wiki note |
+| `/hot-sync` | Regenerate `wiki/hot.md` from ground truth (git + version) |
 | `lint the wiki` | Health check: orphans, dead links, gaps |
 
-Full skill list: see `AGENTS.md` and `skills/*/SKILL.md`.
+Supporting core skills: `defuddle`, `canvas`, `obsidian-markdown`, `obsidian-bases`.
 
----
+### Gated (real code, needs setup)
 
-## Roadmap
+- **teams-new / teams-deploy / teams-sync** — cross-repo domain context. Needs `wiki/domains/` first (`/teams-new`).
+- **publish / feature-request** — maintainer tooling for this repo.
 
-1. **Wiki Engine** (done) — Ingest, query, lint, index. Compounding knowledge base.
-2. **Plugin + Skills** (current) — Claude Code + Cursor. Skills for vault operations.
-3. **Context Bus** — Three-tier architecture. `.vault-os.yml` declaration. Schema-agnostic loading with token budgets.
-4. **Public Release** — End-to-end install. Community templates. Drop vault-os on any vault.
+### Dormant / advanced (shipped, not the daily path)
+
+DragonScale (log folds, page addresses, semantic tiling), hybrid retrieve, methodology modes (`wiki-mode`), `wiki-cli`, and `autoresearch` live under `skills/` and in [docs/dragonscale-guide.md](docs/dragonscale-guide.md) / [docs/compound-vault-guide.md](docs/compound-vault-guide.md). Use when you opt in; they are not required for the core loop.
+
+Full inventory: [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -104,14 +49,6 @@ claude plugin install vault-os@vault-os-marketplace
 
 ### Cursor
 
-Once approved on the official marketplace:
-
-```
-Open Cursor → Marketplace → search "vault-os" → Install
-```
-
-Until then, self-hosted install from this repo:
-
 ```
 Settings → Plugins → Add marketplace → saixso/vault-os
 ```
@@ -125,6 +62,32 @@ bash bin/setup-multi-agent.sh
 ```
 
 In any session: `/wiki`.
+
+---
+
+## How the vault works
+
+```
+vault/
+├── .raw/     # immutable sources
+├── wiki/     # agent-written knowledge (index, log, hot cache, pages)
+└── skills/   # this plugin
+```
+
+- **Hot cache** (`wiki/hot.md`): injected at session start; Ground Truth owned by `scripts/hot-sync.sh`.
+- **Log** (`wiki/log.md`): append-only operations journal.
+- **Index** (`wiki/index.md`): catalog of pages.
+
+---
+
+## Roadmap
+
+1. **Wiki engine (done)** — ingest, query, lint, save, hot-sync.
+2. **Domains** — seed real `wiki/domains/` so teams-* becomes part of the daily path.
+3. **Context bus (future)** — optional `.vault-os.yml` for tiered context budgets. Not shipped today.
+4. **Templates** — community vault shapes (infra, SaaS, research).
+
+See [docs/roadmap.md](docs/roadmap.md).
 
 ---
 

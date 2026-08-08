@@ -2,24 +2,37 @@
 
 ## Product stance (2026-08)
 
-vault-os is an **independent product**. No routine `git merge upstream/main`.
-Historical credit: [ATTRIBUTION.md](../ATTRIBUTION.md).
+vault-os is an **independent product** (not an upstream fork UI). Historical credit: [ATTRIBUTION.md](../ATTRIBUTION.md).
 
-## Shipped
+Honest surface: a compounding Obsidian wiki plugin for agents. Context bus / `.vault-os.yml` is future work, not shipped.
 
-- [x] Fork + rebrand as vault-os
-- [x] Cursor plugin (`.cursor-plugin/`, `rules/`, `hooks/cursor-hooks.json`)
-- [x] teams-new / teams-deploy / teams-sync
-- [x] hot-sync (`scripts/hot-sync.sh` + SessionStart/Stop wiring)
+## Core (shipped and daily)
 
-## Next (personal)
+- [x] Wiki loop: ingest, query, lint, save
+- [x] Cursor + Claude Code plugin manifests
+- [x] hot-sync (`scripts/hot-sync.sh` + SessionStart/Stop)
+- [x] Supporting: defuddle, canvas, obsidian-markdown, obsidian-bases
 
-- [ ] Seed real work domains under `wiki/domains/` (`/teams-new`)
-- [ ] Archive inherited seed-wiki marketing pages (one-shot task)
+## Gated (shipped, needs setup)
+
+- [x] teams-new / teams-deploy / teams-sync (code exists)
+- [ ] Seed real work domains under `wiki/domains/` so teams-* is usable
 - [ ] Wire `/teams-deploy` into the repos you touch most
+- [x] publish / feature-request (maintainer tools)
+
+## Dormant / advanced (shipped, not promoted)
+
+- [x] DragonScale: fold, addresses, tiling, boundary-first autoresearch (opt-in docs)
+- [x] Compound Vault: wiki-retrieve, wiki-cli, wiki-mode
+- Keep dormant until core + domains are habitual
+
+## Next
+
+- [ ] Archive inherited seed-wiki marketing pages (one-shot)
+- [ ] Prefer Core skills in agent guidance (done in AGENTS.md / README)
 
 ## Later
 
-- [ ] Opinionated harness defaults for infra/platform workflows
+- [ ] Context bus: `.vault-os.yml` tiered context budgets
 - [ ] Token-aware ingest / cost tracking
 - [ ] Community templates (infra wiki, SaaS brain)
