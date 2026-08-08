@@ -11,7 +11,7 @@
     {
       "name": "vault-os",
       "source": ".",
-      "description": "Persistent, compounding Obsidian wiki vault — 11 skills, DragonScale memory.",
+      "description": "Persistent, compounding Obsidian wiki vault for AI agents. Skills for ingest, query, lint, teams, and hot-sync.",
       "version": "2.4.0",
       "author": {
         "name": "saixso",

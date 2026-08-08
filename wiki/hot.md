@@ -1,7 +1,7 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-08-08T08:52:46Z
+updated: 2026-08-08T08:59:06Z
 tags:
   - meta
   - hot-cache
@@ -21,7 +21,7 @@ Navigation: [[index]] | [[log]] | [[overview]]
 
 - **Version**: 2.4.0
 - **Repo**: /Users/saisoundararajan/Documents/vault-os
-- **Branch**: feat/hot-sync-detach-upstream @ cc38e9d (dirty)
+- **Branch**: feat/own-brand @ 185714b (dirty)
 - **Skills**: 21
 - **Domains**: (none — run /teams-new to create wiki/domains/)
 - **Wiki pages**: concepts=13 entities=8 sources=1 questions=1 comparisons=2 meta=13 folds=1
@@ -29,11 +29,11 @@ Navigation: [[index]] | [[log]] | [[overview]]
 ### Recent commits
 
 ```
+185714b Merge branch 'feat/hot-sync-detach-upstream'
+0148b93 feat: add hot-sync and detach from upstream tracking
 cc38e9d release: cut vault-os v2.4.0
 6c67cd2 merge: sync upstream v1.9.2 into vault-os
 cb93ff6 chore(assets): add 1280x640 social preview card
-00213b7 release: promote v1.9.2 to public canonical + SSS+ polish + SEO pass
-73616fa feat(contextual-prefix): prompt-cache hardening + path-handling robustness (v1.9.2)
 ```
 
 ### Recent log headers
@@ -47,9 +47,9 @@ cb93ff6 chore(assets): add 1280x640 social preview card
 ## Active Threads
 
 <!-- ACTIVE-THREADS:START -->
-- Building `hot-sync` + detaching from upstream on `feat/hot-sync-detach-upstream`
-- Next: create real work domains with `/teams-new` (wiki/domains/ still missing)
-- Do not resume routine `git merge upstream/main`
+- Own-brand pass: strip fork UI + AgriciDaniel About links
+- GitHub "forked from" badge needs recreate (see docs/unfork-github.md)
+- hot-sync already on main
 <!-- ACTIVE-THREADS:END -->
 
 ## Notes

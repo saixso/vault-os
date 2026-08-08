@@ -10,7 +10,8 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
 
 ### Changed
 
-- **Independent product.** vault-os no longer tracks routine upstream merges. Ownership docs (`CLAUDE.md`, `AGENTS.md`, `ATTRIBUTION.md`, `docs/architecture.md`, `docs/roadmap.md`, rules) treat the full tree as vault-os owned.
+- **Own brand.** Public README, plugin manifests, CITATION, CONTRIBUTING, and agent docs no longer present vault-os as an AgriciDaniel fork. GitHub About should point at `saixso/vault-os` only (see `docs/unfork-github.md` to drop the Fork badge).
+- **Independent product.** Ownership docs treat the full tree as vault-os owned.
 
 ## [2.4.0] - 2026-06-15 (vault-os)
 

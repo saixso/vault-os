@@ -1,14 +1,14 @@
 # Attributions
 
-claude-obsidian is an original work. The following third-party patterns, tools, and creators informed its design.
+Third-party patterns and assets used by vault-os.
 
 ---
 
 ## LLM Wiki Pattern
 
 **Author:** Andrej Karpathy
-**Source:** https://github.com/karpathy
-**Use:** The core architecture of claude-obsidian — using an LLM to build and maintain a structured wiki from raw sources — is based on the LLM Wiki pattern Karpathy described publicly. claude-obsidian is an independent implementation; no code or content from Karpathy's repositories was copied.
+**Source:** https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+**Use:** The core idea of using an LLM to maintain a structured wiki from raw sources. vault-os is an independent implementation; no code was copied from Karpathy's repositories.
 
 ---
 
@@ -40,15 +40,9 @@ The following Obsidian community plugins ship with this vault as pre-installed b
 
 ---
 
-## claude-obsidian (historical upstream)
+## Prior art
 
-**Author:** AgriciDaniel / AI Marketing Hub
-**License:** MIT (see [LICENSE](LICENSE))
-**Repository:** https://github.com/AgriciDaniel/claude-obsidian
-
-vault-os started as a fork of claude-obsidian. Architecture and early skills descend from that work. Credit remains with AgriciDaniel.
-
-As of 2026-08, vault-os is an **independent product**. It does not routinely merge upstream. The `upstream` remote may exist for history or rare cherry-picks only.
+Early vault-os skill shapes were informed by the open-source [claude-obsidian](https://github.com/AgriciDaniel/claude-obsidian) project (MIT) by AgriciDaniel. vault-os is a separate product maintained by [saixso](https://github.com/saixso).
 
 ---
 
@@ -56,4 +50,4 @@ As of 2026-08, vault-os is an **independent product**. It does not routinely mer
 
 **Maintainer:** saixso
 **Repository:** https://github.com/saixso/vault-os
-**Changes:** Rebranding, Cursor plugin support, teams skills, hot-sync, and further product work owned here
+**License:** MIT
