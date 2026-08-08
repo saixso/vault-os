@@ -1,19 +1,16 @@
-
 # vault-os
 
 A schema-agnostic context bus for AI agents. Load the right knowledge, from the right sources, in the right order — so every token in the context window earns its keep.
 
-**Fork of [claude-obsidian](https://github.com/AgriciDaniel/claude-obsidian) by [AgriciDaniel](https://github.com/AgriciDaniel).** Based on [Andrej Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
+Built by [saixso](https://github.com/saixso). Inspired by [Andrej Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-8B5CF6)](https://code.claude.com/docs/en/discover-plugins)
 [![Cursor](https://img.shields.io/badge/Cursor-plugin-1e1e1e)](https://cursor.com/docs/plugins)
-[![Upstream](https://img.shields.io/badge/upstream-claude--obsidian-orange)](https://github.com/AgriciDaniel/claude-obsidian)
-[![Blog Post](https://img.shields.io/badge/Deep_Dive-Blog_Post-22c55e)](https://agricidaniel.com/blog/claude-obsidian-ai-second-brain)
 
 A running notetaker that builds and maintains a persistent, compounding wiki vault. Every source you add gets integrated. Every question you ask pulls from everything that has been read. Knowledge compounds like interest.
 
-**11 skills. Zero manual filing. Multi-agent support. Optional [DragonScale Memory](docs/dragonscale-guide.md) extension** (log folds, deterministic page addresses, semantic tiling lint, boundary-first autoresearch).
+**Skills for ingest, query, lint, save, teams, and hot-sync. Multi-agent support. Optional [DragonScale Memory](docs/dragonscale-guide.md)** (log folds, deterministic page addresses, semantic tiling lint, boundary-first autoresearch).
 
 ---
 
@@ -79,17 +76,18 @@ A Claude Code **and Cursor** plugin that manages a persistent, compounding wiki 
 | `ingest [file]` | Read source, create wiki pages, update index |
 | `what do you know about X?` | Query wiki, synthesize answer |
 | `/save` | File current conversation as a wiki note |
+| `/hot-sync` | Regenerate `wiki/hot.md` from ground truth |
 | `/autoresearch [topic]` | Autonomous research loop: search, fetch, synthesize |
 | `lint the wiki` | Health check: orphans, dead links, gaps |
 
-10 skills included. See [upstream docs](https://github.com/AgriciDaniel/claude-obsidian) for full documentation.
+Full skill list: see `AGENTS.md` and `skills/*/SKILL.md`.
 
 ---
 
 ## Roadmap
 
 1. **Wiki Engine** (done) — Ingest, query, lint, index. Compounding knowledge base.
-2. **Plugin + Skills** (current) — Claude Code plugin. 10 skills for vault operations.
+2. **Plugin + Skills** (current) — Claude Code + Cursor. Skills for vault operations.
 3. **Context Bus** — Three-tier architecture. `.vault-os.yml` declaration. Schema-agnostic loading with token budgets.
 4. **Public Release** — End-to-end install. Community templates. Drop vault-os on any vault.
 
@@ -130,8 +128,8 @@ In any session: `/wiki`.
 
 ---
 
-## Attribution
+## License
 
-Fork of [claude-obsidian](https://github.com/AgriciDaniel/claude-obsidian) by [AgriciDaniel](https://github.com/AgriciDaniel), licensed under MIT. See [ATTRIBUTION.md](ATTRIBUTION.md).
+MIT. See [LICENSE](LICENSE) and [ATTRIBUTION.md](ATTRIBUTION.md).
 
-*Built by [saixso](https://github.com/saixso).*
+*Built and maintained by [saixso](https://github.com/saixso).*

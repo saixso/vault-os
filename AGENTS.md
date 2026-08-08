@@ -2,7 +2,7 @@
 
 This repo is a Claude Code + Cursor plugin **and** an Obsidian vault that builds persistent, compounding knowledge bases using Andrej Karpathy's LLM Wiki pattern. It works with **any AI coding agent** that supports the Agent Skills standard, including Codex CLI, OpenCode, Cursor, and similar.
 
-Originally built for Claude Code, the skills follow the cross-platform Agent Skills spec. Newer skills (`wiki-fold`, `wiki-ingest`, `wiki-lint`) use only `name` and `description` frontmatter (kepano convention). Some older skills still carry an optional `allowed-tools` field for Claude Code compatibility; cross-platform agents that do not recognize it should ignore it.
+Skills follow the cross-platform Agent Skills spec. Newer skills use only `name` and `description` frontmatter. Older skills may still carry an optional `allowed-tools` field for Claude Code; agents that do not recognize it should ignore it.
 
 ## Skills Discovery
 
@@ -42,6 +42,7 @@ ln -s "$(pwd)/skills" ~/.opencode/skills/vault-os
 | `defuddle` | clean this url, defuddle |
 | `obsidian-markdown` | obsidian syntax, wikilink, callout |
 | `obsidian-bases` | obsidian bases, .base file, dynamic table |
+| `teams-new` / `teams-deploy` / `teams-sync` | domain scaffolding and cross-repo context |
 
 ## Key Conventions
 
@@ -50,7 +51,6 @@ ln -s "$(pwd)/skills" ~/.opencode/skills/vault-os
 - **Source documents**: `.raw/` (immutable: agents never modify these)
 - **Generated knowledge**: `wiki/` (agent-owned, links to sources via wikilinks)
 - **Manifest**: `.raw/.manifest.json` tracks ingested sources (delta tracking)
-- **Lineage**: descended from claude-obsidian; vault-os is the product of record and does not track upstream merges
 
 ## Bootstrap
 
@@ -64,6 +64,5 @@ When the user opens this project for the first time:
 ## Reference
 
 - Plugin source: https://github.com/saixso/vault-os
-- Historical upstream: https://github.com/AgriciDaniel/claude-obsidian
 - Pattern source: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
-- Cross-reference: https://github.com/kepano/obsidian-skills (authoritative Obsidian-specific skills)
+- Cross-reference: https://github.com/kepano/obsidian-skills (Obsidian-specific skills)

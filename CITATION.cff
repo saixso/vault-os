@@ -1,18 +1,20 @@
 cff-version: 1.2.0
-title: claude-obsidian
+title: vault-os
 message: >-
   If you use this software, please cite it using the metadata from this file.
 type: software
 authors:
-  - alias: AgriciDaniel
-repository-code: 'https://github.com/AgriciDaniel/claude-obsidian'
-url: 'https://github.com/AgriciDaniel/claude-obsidian'
+  - alias: saixso
+    website: 'https://github.com/saixso'
+repository-code: 'https://github.com/saixso/vault-os'
+url: 'https://github.com/saixso/vault-os'
 license: MIT
-version: 1.9.2
-date-released: '2026-05-28'
+version: 2.4.0
+date-released: '2026-06-15'
 keywords:
   - obsidian
   - claude-code
+  - cursor
   - knowledge-management
   - second-brain
   - pkm
