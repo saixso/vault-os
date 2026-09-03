@@ -76,7 +76,22 @@
 
 set -euo pipefail
 
-VAULT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Vault root resolution (v2.4.1): the script may live inside the vault (legacy
+# in-vault layout) or inside the plugin cache (marketplace install), where
+# script-relative ../ points at the CACHE, not the vault. Priority:
+#   1. $VAULT_OS_VAULT_ROOT (explicit override; WIKI_LOCK_VAULT below still wins)
+#   2. $PWD when it looks like a vault (has wiki/, .obsidian/, or .vault-meta/)
+#   3. script-relative ../ (legacy in-vault layout)
+resolve_vault_root() {
+  if [ -n "${VAULT_OS_VAULT_ROOT:-}" ]; then
+    printf '%s' "$VAULT_OS_VAULT_ROOT"
+  elif [ -d "$PWD/wiki" ] || [ -d "$PWD/.obsidian" ] || [ -d "$PWD/.vault-meta" ]; then
+    printf '%s' "$PWD"
+  else
+    cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd
+  fi
+}
+VAULT_ROOT="$(resolve_vault_root)"
 META_DIR="${VAULT_ROOT}/.vault-meta"
 LOCK_DIR="${META_DIR}/locks"
 META_LOCK="${META_DIR}/.wiki-lock.meta"
@@ -151,11 +166,35 @@ is_alive() {
 # acquire/release/clear-stale don't race against each other.
 with_meta_lock() {
   ensure_dirs
-  # Use flock under bash's redirect; meta lock is short-lived per command.
-  (
-    flock -x -w 5 9 || die "could not acquire meta-lock within 5s" 1
-    "$@"
-  ) 9>"$META_LOCK"
+  if command -v flock >/dev/null 2>&1; then
+    # Linux (and anywhere flock(1) exists): kernel lock under bash's redirect.
+    (
+      flock -x -w 5 9 || die "could not acquire meta-lock within 5s" 1
+      "$@"
+    ) 9>"$META_LOCK"
+    return $?
+  fi
+  # macOS ships no flock(1) binary (v2.4.1; fixes every acquire failing on
+  # Darwin). Portable fallback: atomic mkdir spin-lock. mkdir is atomic on
+  # POSIX filesystems; a crashed holder is reaped by age (>10s — the meta-lock
+  # protects operations that complete in milliseconds).
+  local meta_dir="${META_LOCK}.d" waited=0 rc=0 now mtime
+  until mkdir "$meta_dir" 2>/dev/null; do
+    if [ -d "$meta_dir" ]; then
+      now=$(now_epoch)
+      mtime=$(stat -f %m "$meta_dir" 2>/dev/null || stat -c %Y "$meta_dir" 2>/dev/null || echo "$now")
+      if [ $((now - mtime)) -ge 10 ]; then
+        rmdir "$meta_dir" 2>/dev/null || true
+        continue
+      fi
+    fi
+    [ "$waited" -ge 50 ] && die "could not acquire meta-lock within 5s" 1
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+  ( "$@" ) || rc=$?   # subshell mirrors the flock branch: a die inside cannot skip release
+  rmdir "$meta_dir" 2>/dev/null || true
+  return $rc
 }
 
 read_lockfile() {

@@ -14,6 +14,14 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
 - **Independent product.** Ownership docs treat the full tree as vault-os owned.
 - **Feature honesty.** README and AGENTS.md advertise Core skills only (wiki loop + hot-sync). Teams/publish are gated; DragonScale, retrieve, wiki-mode, and autoresearch are labeled dormant/advanced. Context bus / `.vault-os.yml` moved to roadmap (not shipped).
 
+## [2.4.1] - 2026-09-03 (vault-os)
+
+### Fixed
+
+- **macOS locking.** `wiki-lock.sh` `with_meta_lock` and `allocate-address.sh` no longer require the `flock(1)` binary, which Darwin does not ship — every lock acquire failed on macOS. Both now use `flock` when present and fall back to an atomic `mkdir` spin-lock (5s timeout, age-based reap of crashed holders). Python scripts were unaffected (`fcntl.flock` is a syscall).
+- **Vault root resolution in plugin-cache installs.** `wiki-lock.sh`, `detect-transport.sh`, and `allocate-address.sh` resolved `VAULT_ROOT` from the script's own location, which is the marketplace plugin cache — `transport.json`, locks, and the address counter landed in the cache instead of the vault, and transport re-detected on every run. Resolution order is now `$VAULT_OS_VAULT_ROOT` env → `$PWD` when it looks like a vault (`wiki/`, `.obsidian/`, or `.vault-meta/`) → script-relative legacy. `WIKI_LOCK_VAULT` still takes precedence for tests.
+- **Test portability.** Lock and allocator tests compared raw `wc -l` output, which BSD `wc` pads with spaces; assertions now trim. Full suite green on macOS: wiki-lock 16/16, allocate-address 12/12, concurrent-write 6/6.
+
 ## [2.4.0] - 2026-06-15 (vault-os)
 
 ### Added

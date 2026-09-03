@@ -28,7 +28,23 @@
 
 set -euo pipefail
 
-VAULT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Vault root resolution (v2.4.1): the script may live inside the vault (legacy
+# in-vault layout) or inside the plugin cache (marketplace install), where
+# script-relative ../ points at the CACHE — transport.json was landing in the
+# plugin directory and re-detection ran on every invocation. Priority:
+#   1. $VAULT_OS_VAULT_ROOT (explicit override)
+#   2. $PWD when it looks like a vault (has wiki/, .obsidian/, or .vault-meta/)
+#   3. script-relative ../ (legacy in-vault layout)
+resolve_vault_root() {
+  if [ -n "${VAULT_OS_VAULT_ROOT:-}" ]; then
+    printf '%s' "$VAULT_OS_VAULT_ROOT"
+  elif [ -d "$PWD/wiki" ] || [ -d "$PWD/.obsidian" ] || [ -d "$PWD/.vault-meta" ]; then
+    printf '%s' "$PWD"
+  else
+    cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd
+  fi
+}
+VAULT_ROOT="$(resolve_vault_root)"
 META_DIR="${VAULT_ROOT}/.vault-meta"
 OUTPUT_FILE="${META_DIR}/transport.json"
 STALE_AFTER_DAYS=7

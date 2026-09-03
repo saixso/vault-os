@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "vault-os: Opinionated Claude Code + Obsidian knowledge companion by saixso",
-    "version": "2.4.0"
+    "version": "2.4.1"
   },
   "plugins": [
     {
@@ -17,7 +17,7 @@
         "ref": "main"
       },
       "description": "Persistent, compounding Obsidian wiki vault for Claude Code and Cursor. Ingest, query, lint, teams context, and deterministic hot-sync.",
-      "version": "2.4.0",
+      "version": "2.4.1",
       "author": {
         "name": "saixso",
         "url": "https://github.com/saixso"
