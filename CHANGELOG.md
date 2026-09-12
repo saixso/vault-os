@@ -2,6 +2,24 @@
 
 All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [2.4.2] - 2026-09-12
+
+### Added
+
+- **Hook schema test** (`tests/test_hooks_schema.py`, `make test-hooks`). Validates `hooks/hooks.json` and `hooks/cursor-hooks.json`: known event names, valid hook `type` plus its required payload key, valid `SessionStart` matcher tokens, `bash -n` on every command hook, and no prompt hooks on `SessionStart`. Also pins the `cat wiki/hot.md` command hook so the hot-cache restore path cannot be deleted silently. Hermetic; wired into `make test`.
+
+### Fixed
+
+- **SessionStart prompt hook removed** (`hooks/hooks.json`). The `SessionStart` block carried a fourth `"type": "prompt"` entry that told the agent to silently read `wiki/hot.md`. `SessionStart` runs before any conversation exists, so there is no place to inject a prompt — the entry did nothing and raised a hook error on every session open. Hot-cache restore was already handled by the `cat wiki/hot.md` command hook, whose STDOUT becomes startup context. Docs updated: `hooks/README.md`, `.github/copilot-instructions.md`.
+
+### Removed
+
+- **teams-new / teams-deploy / teams-sync deleted** (v2.4.2). The feature never worked. `/teams-new` wrote `wiki/domains/<domain>.md`; `/teams-deploy` wrote a `domain: <name>` pointer into each repo's `.claude/CLAUDE.md`; the "Domain Router" `SessionStart` hook that resolved that pointer into the domain file **was never built**. It existed only as prose in `skills/teams-deploy/SKILL.md` and `commands/teams-deploy.md`, which told the agent to verify the hook in `~/.claude/settings.json` and, when missing, to consult an "agent-teams build plan" that is not in the repo. No hook, script, or manifest read `wiki/domains/`. Sessions saw the bare token `domain: <name>` and nothing else, so `/teams-sync` diffed the wiki against a file nothing loaded.
+  - Deleted: `skills/teams-new/`, `skills/teams-deploy/`, `skills/teams-sync/`, `commands/teams-new.md`, `commands/teams-deploy.md`, `commands/teams-sync.md`.
+  - `scripts/hot-sync.sh` no longer tracks domains: dropped `DOMAINS_DIR`, the `Domains` Ground Truth field, `domains` from the page-count loop, `DOMAIN_LIST` from the fingerprint, and the dead `/teams-new` hint from the Notes block. This changes the fingerprint, so the next run rewrites `wiki/hot.md` once.
+  - Docs: removed from `README.md` and `AGENTS.md`; recorded under `## Not shipped` in `docs/roadmap.md` with the design note for any future attempt; `teams` dropped from both plugin descriptions.
+  - Historical `skills/teams-*` entries below are left as written — they record what shipped at the time.
+
 ## [Unreleased]
 
 ### Added

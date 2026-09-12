@@ -1,7 +1,7 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-08-08T08:59:06Z
+updated: 2026-09-12T17:24:36Z
 tags:
   - meta
   - hot-cache
@@ -15,25 +15,24 @@ Navigation: [[index]] | [[log]] | [[overview]]
 
 ## Last Updated
 
-2026-08-08 (hot-sync). Regenerated from git + plugin.json. Do not hand-edit the Ground Truth block; edit Active Threads only.
+2026-09-12 (hot-sync). Regenerated from git + plugin.json. Do not hand-edit the Ground Truth block; edit Active Threads only.
 
 ## Ground Truth
 
-- **Version**: 2.4.0
+- **Version**: 2.4.2
 - **Repo**: /Users/saisoundararajan/Documents/vault-os
-- **Branch**: feat/own-brand @ 185714b (dirty)
-- **Skills**: 21
-- **Domains**: (none — run /teams-new to create wiki/domains/)
+- **Branch**: main @ 127f27c (dirty)
+- **Skills**: 18
 - **Wiki pages**: concepts=13 entities=8 sources=1 questions=1 comparisons=2 meta=13 folds=1
 
 ### Recent commits
 
 ```
-185714b Merge branch 'feat/hot-sync-detach-upstream'
-0148b93 feat: add hot-sync and detach from upstream tracking
-cc38e9d release: cut vault-os v2.4.0
-6c67cd2 merge: sync upstream v1.9.2 into vault-os
-cb93ff6 chore(assets): add 1280x640 social preview card
+127f27c fix: macOS support — flock fallback, vault-root resolution in plugin-cache installs (v2.4.1)
+6054901 Merge pull request #1 from saixso/feat/readme-honesty
+616845b docs: honest README — Core vs gated vs dormant skills
+3f5b234 Merge branch 'feat/own-brand'
+91fe262 docs: brand vault-os as saixso product, drop fork presentation
 ```
 
 ### Recent log headers
@@ -56,4 +55,3 @@ cb93ff6 chore(assets): add 1280x640 social preview card
 
 - This file is a cache. Ground Truth is owned by `scripts/hot-sync.sh`.
 - Prefer `/save` for durable notes; prefer `/hot-sync` (or SessionStart) to refresh this file.
-- Create real work domains with `/teams-new` before relying on `/teams-sync`.

@@ -48,7 +48,6 @@ WIKI_DIR="${VAULT_ROOT}/wiki"
 HOT_FILE="${WIKI_DIR}/hot.md"
 PLUGIN_JSON="${VAULT_ROOT}/.claude-plugin/plugin.json"
 SKILLS_DIR="${VAULT_ROOT}/skills"
-DOMAINS_DIR="${WIKI_DIR}/domains"
 LOG_FILE="${WIKI_DIR}/log.md"
 META_DIR="${VAULT_ROOT}/.vault-meta"
 FP_FILE="${META_DIR}/hot-sync.sha"
@@ -90,14 +89,6 @@ if [ -d "$SKILLS_DIR" ]; then
   SKILL_COUNT="$(find "$SKILLS_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
 fi
 
-DOMAIN_LIST="(none — run /teams-new to create wiki/domains/)"
-if [ -d "$DOMAINS_DIR" ]; then
-  DOMAIN_NAMES="$(find "$DOMAINS_DIR" -maxdepth 1 -name '*.md' ! -name '_index.md' -exec basename {} .md \; 2>/dev/null | sort | tr '\n' ', ' | sed 's/, $//')"
-  if [ -n "$DOMAIN_NAMES" ]; then
-    DOMAIN_LIST="$DOMAIN_NAMES"
-  fi
-fi
-
 BRANCH="n/a"
 HEAD_SHA="n/a"
 DIRTY="clean"
@@ -117,7 +108,7 @@ if [ -f "$LOG_FILE" ]; then
 fi
 
 PAGE_COUNTS=""
-for sub in concepts entities sources questions comparisons meta folds domains; do
+for sub in concepts entities sources questions comparisons meta folds; do
   if [ -d "${WIKI_DIR}/${sub}" ]; then
     n="$(find "${WIKI_DIR}/${sub}" -type f -name '*.md' ! -name '_index.md' 2>/dev/null | wc -l | tr -d ' ')"
     PAGE_COUNTS="${PAGE_COUNTS}${sub}=${n} "
@@ -126,7 +117,7 @@ done
 PAGE_COUNTS="$(echo "$PAGE_COUNTS" | sed 's/[[:space:]]*$//')"
 
 # Fingerprint excludes timestamps and dirty flag so SessionStart is stable mid-edit.
-FP_SRC=$(printf '%s\0' "$VERSION" "$BRANCH" "$HEAD_SHA" "$SKILL_COUNT" "$DOMAIN_LIST" "$PAGE_COUNTS" "$RECENT_COMMITS" "$LOG_TAIL")
+FP_SRC=$(printf '%s\0' "$VERSION" "$BRANCH" "$HEAD_SHA" "$SKILL_COUNT" "$PAGE_COUNTS" "$RECENT_COMMITS" "$LOG_TAIL")
 if command -v shasum >/dev/null 2>&1; then
   FINGERPRINT="$(printf '%s' "$FP_SRC" | shasum -a 256 | awk '{print $1}')"
 else
@@ -171,7 +162,6 @@ ${TODAY} (hot-sync). Regenerated from git + plugin.json. Do not hand-edit the Gr
 - **Repo**: ${VAULT_ROOT}
 - **Branch**: ${BRANCH} @ ${HEAD_SHA} (${DIRTY})
 - **Skills**: ${SKILL_COUNT}
-- **Domains**: ${DOMAIN_LIST}
 - **Wiki pages**: ${PAGE_COUNTS:-n/a}
 
 ### Recent commits
@@ -196,7 +186,6 @@ ${ACTIVE_THREADS}
 
 - This file is a cache. Ground Truth is owned by \`scripts/hot-sync.sh\`.
 - Prefer \`/save\` for durable notes; prefer \`/hot-sync\` (or SessionStart) to refresh this file.
-- Create real work domains with \`/teams-new\` before relying on \`/teams-sync\`.
 EOF
 } >"$TMP"
 

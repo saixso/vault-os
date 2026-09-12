@@ -43,6 +43,7 @@ When suggesting edits:
 - Hook types: `command` (shell), `prompt` (LLM), `http` (POST), `agent` (subagent)
 - `matcher` field uses regex against tool names for `PreToolUse`/`PostToolUse`
 - For `SessionStart`: matcher uses `startup`, `resume`, `clear`, or `compact`
+- `SessionStart` accepts `command` hooks only. There is no conversation yet at startup, so a `prompt` hook has nowhere to inject and errors. Inject startup context by writing to STDOUT from a `command` hook.
 
 ## Cross-Reference
 

@@ -27,7 +27,6 @@ Supporting core skills: `defuddle`, `canvas`, `obsidian-markdown`, `obsidian-bas
 
 ### Gated (real code, needs setup)
 
-- **teams-new / teams-deploy / teams-sync** — cross-repo domain context. Needs `wiki/domains/` first (`/teams-new`).
 - **publish / feature-request** — maintainer tooling for this repo.
 
 ### Dormant / advanced (shipped, not the daily path)
@@ -83,7 +82,7 @@ vault/
 ## Roadmap
 
 1. **Wiki engine (done)** — ingest, query, lint, save, hot-sync.
-2. **Domains** — seed real `wiki/domains/` so teams-* becomes part of the daily path.
+2. **Cross-repo domain context** — not shipped. See `docs/roadmap.md`.
 3. **Context bus (future)** — optional `.vault-os.yml` for tiered context budgets. Not shipped today.
 4. **Templates** — community vault shapes (infra, SaaS, research).
 

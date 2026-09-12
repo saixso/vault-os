@@ -49,7 +49,6 @@ ln -s "$(pwd)/skills" ~/.opencode/skills/vault-os
 
 | Skill | Gate |
 |---|---|
-| `teams-new` / `teams-deploy` / `teams-sync` | Requires `wiki/domains/` (create with `/teams-new`) |
 | `publish` | Maintainer: version bump + push this plugin |
 | `feature-request` | Maintainer: file ideas as GitHub issues |
 

@@ -15,21 +15,22 @@ Honest surface: a compounding Obsidian wiki plugin for agents. Context bus / `.v
 
 ## Gated (shipped, needs setup)
 
-- [x] teams-new / teams-deploy / teams-sync (code exists)
-- [ ] Seed real work domains under `wiki/domains/` so teams-* is usable
-- [ ] Wire `/teams-deploy` into the repos you touch most
 - [x] publish / feature-request (maintainer tools)
 
 ## Dormant / advanced (shipped, not promoted)
 
 - [x] DragonScale: fold, addresses, tiling, boundary-first autoresearch (opt-in docs)
 - [x] Compound Vault: wiki-retrieve, wiki-cli, wiki-mode
-- Keep dormant until core + domains are habitual
+- Keep dormant until the core loop is habitual
 
 ## Next
 
 - [ ] Archive inherited seed-wiki marketing pages (one-shot)
 - [ ] Prefer Core skills in agent guidance (done in AGENTS.md / README)
+
+## Not shipped
+
+- [ ] **Cross-repo domain context.** `teams-new` / `teams-deploy` / `teams-sync` were removed in v2.4.2. The skills wrote `wiki/domains/<domain>.md` and a `domain: <name>` pointer into each repo's `.claude/CLAUDE.md`, but the "Domain Router" hook that resolved that pointer was never built — it existed only in prose in the skill bodies. Nothing loaded the domain file, so the whole chain was inert. If this returns, skip the pointer indirection: write the domain content straight into `{repo}/.claude/CLAUDE.md`, which Claude Code already auto-loads and which survives context compaction (hook STDOUT does not).
 
 ## Later
 
