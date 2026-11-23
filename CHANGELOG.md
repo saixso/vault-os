@@ -4,6 +4,12 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-23
+
+### Added
+
+- **bets.** Track bets (a Shape Up bet, a quarter goal, a personal project) as one note each in the vault's `bets/` folder: owner, area (work or life), cycle dates, milestones, KPIs with baseline, target and read date, dated readings, blockers and signals. Skill `bets` with flows for backfill (interview the user about past bets, create notes in one batch), new bet, recording signals and blockers, KPI readings and outcomes, and the radar. `scripts/bets.py` (stdlib only) creates notes from the vault's `templates/bet.md` or the starter template, appends lines in a fixed format, and scores every bet by ordered rules: off track (owner's call, milestone date passed, cycle ended unshipped), drifting (blocker open 7+ days, close date with work not started), stalled (no owner, no signal for 7 days), else on track. Thresholds in `bets/bets-config.json` or flags. Delivery (on time, late, not shipped, dropped) and KPI result (hit, partial, missed, not read) are computed; the user's own outcome call wins when set. `score` writes the status fields into each note and rewrites `bets/Bet Radar.md` (needs attention, follow-ups by owner, active bets, delivery by outcome scorecard, Dataview live view). Command `/bets`. Contract: `skills/bets/references/bet-contract.md`. Tests: `make test-bets`. Guide: `docs/bets.md`.
+
 ## [2.5.0] - 2026-11-23
 
 ### Added

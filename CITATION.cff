@@ -9,7 +9,7 @@ authors:
 repository-code: 'https://github.com/saixso/vault-os'
 url: 'https://github.com/saixso/vault-os'
 license: MIT
-version: 2.5.0
+version: 2.6.0
 date-released: '2026-11-23'
 keywords:
   - obsidian
