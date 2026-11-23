@@ -1,6 +1,6 @@
 {
   "name": "vault-os",
-  "version": "2.4.2",
+  "version": "2.5.0",
   "description": "Persistent, compounding Obsidian wiki vault for Claude Code and Cursor. Ingest, query, lint, and deterministic hot-sync.",
   "author": {
     "name": "saixso",

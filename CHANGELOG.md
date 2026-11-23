@@ -2,6 +2,22 @@
 
 All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+## [2.5.0] - 2026-11-23
+
+### Added
+
+- **planner.** Daily, weekly and monthly Obsidian notes filled from calendar, meeting notes and mail. Skills `planner` (router + setup), `daily-planner` (close today: promises, to-dos, decisions, scorecard; prep the next workday: meeting prep cards, a ranked top 3 Focus), `weekly-planner` (last week's numbers, the week ahead, suggested goals) and `monthly-planner` (month scorecard, what moved, what stalled). Shared rules in `skills/planner/references/`, starter templates in `skills/planner/templates/`. `scripts/planner.py` (stdlib only) renders notes from the vault's own templates or the starters, writes only inside `<!-- planner:NAME -->` blocks, and computes scorecards, due items, focus candidates and time strips. Vault comes from `--vault`, `$VAULT_OS_VAULT_ROOT`, or the current directory, and the script refuses a folder that is not a vault. Moved here from `saixso/obsidian-vault` `.vault-os/planner/`. Tests: `make test-planner`. Guide: `docs/planner.md`.
+
+- **hot-sync.** Deterministic `scripts/hot-sync.sh` regenerates `wiki/hot.md` Ground Truth from git + plugin.json; preserves Active Threads markers. Skill + `/hot-sync` command. SessionStart/Stop hooks run the script instead of asking the LLM to rewrite hot.md. Fingerprint skip avoids dirtying the tree when nothing changed. Tests: `make test-hot-sync`.
+
+### Changed
+
+- **Own brand.** Public README, plugin manifests, CITATION, CONTRIBUTING, and agent docs no longer present vault-os as an AgriciDaniel fork. GitHub About should point at `saixso/vault-os` only (see `docs/unfork-github.md` to drop the Fork badge).
+- **Independent product.** Ownership docs treat the full tree as vault-os owned.
+- **Feature honesty.** README and AGENTS.md advertise Core skills only (wiki loop + hot-sync). Teams/publish are gated; DragonScale, retrieve, wiki-mode, and autoresearch are labeled dormant/advanced. Context bus / `.vault-os.yml` moved to roadmap (not shipped).
+
 ## [2.4.2] - 2026-09-12
 
 ### Added
@@ -19,20 +35,6 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
   - `scripts/hot-sync.sh` no longer tracks domains: dropped `DOMAINS_DIR`, the `Domains` Ground Truth field, `domains` from the page-count loop, `DOMAIN_LIST` from the fingerprint, and the dead `/teams-new` hint from the Notes block. This changes the fingerprint, so the next run rewrites `wiki/hot.md` once.
   - Docs: removed from `README.md` and `AGENTS.md`; recorded under `## Not shipped` in `docs/roadmap.md` with the design note for any future attempt; `teams` dropped from both plugin descriptions.
   - Historical `skills/teams-*` entries below are left as written — they record what shipped at the time.
-
-## [Unreleased]
-
-### Added
-
-- **planner.** Daily, weekly and monthly Obsidian notes filled from calendar, meeting notes and mail. Skills `planner` (router + setup), `daily-planner` (close today: promises, to-dos, decisions, scorecard; prep the next workday: meeting prep cards, a ranked top 3 Focus), `weekly-planner` (last week's numbers, the week ahead, suggested goals) and `monthly-planner` (month scorecard, what moved, what stalled). Shared rules in `skills/planner/references/`, starter templates in `skills/planner/templates/`. `scripts/planner.py` (stdlib only) renders notes from the vault's own templates or the starters, writes only inside `<!-- planner:NAME -->` blocks, and computes scorecards, due items, focus candidates and time strips. Vault comes from `--vault`, `$VAULT_OS_VAULT_ROOT`, or the current directory, and the script refuses a folder that is not a vault. Moved here from `saixso/obsidian-vault` `.vault-os/planner/`. Tests: `make test-planner`. Guide: `docs/planner.md`.
-
-- **hot-sync.** Deterministic `scripts/hot-sync.sh` regenerates `wiki/hot.md` Ground Truth from git + plugin.json; preserves Active Threads markers. Skill + `/hot-sync` command. SessionStart/Stop hooks run the script instead of asking the LLM to rewrite hot.md. Fingerprint skip avoids dirtying the tree when nothing changed. Tests: `make test-hot-sync`.
-
-### Changed
-
-- **Own brand.** Public README, plugin manifests, CITATION, CONTRIBUTING, and agent docs no longer present vault-os as an AgriciDaniel fork. GitHub About should point at `saixso/vault-os` only (see `docs/unfork-github.md` to drop the Fork badge).
-- **Independent product.** Ownership docs treat the full tree as vault-os owned.
-- **Feature honesty.** README and AGENTS.md advertise Core skills only (wiki loop + hot-sync). Teams/publish are gated; DragonScale, retrieve, wiki-mode, and autoresearch are labeled dormant/advanced. Context bus / `.vault-os.yml` moved to roadmap (not shipped).
 
 ## [2.4.1] - 2026-09-03 (vault-os)
 
