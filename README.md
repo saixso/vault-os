@@ -28,6 +28,7 @@ Supporting core skills: `defuddle`, `canvas`, `obsidian-markdown`, `obsidian-bas
 ### Gated (real code, needs setup)
 
 - **publish / feature-request** — maintainer tooling for this repo.
+- **planner** (`daily-planner`, `weekly-planner`, `monthly-planner`) — daily, weekly and monthly notes filled from calendar, meeting notes and mail: next-day prep, a ranked top 3, promises kept, decisions and how they paid off. Needs those connectors and the planner templates. See [docs/planner.md](docs/planner.md).
 
 ### Dormant / advanced (shipped, not the daily path)
 
