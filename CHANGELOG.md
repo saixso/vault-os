@@ -24,6 +24,8 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
 
 ### Added
 
+- **planner.** Daily, weekly and monthly Obsidian notes filled from calendar, meeting notes and mail. Skills `planner` (router + setup), `daily-planner` (close today: promises, to-dos, decisions, scorecard; prep the next workday: meeting prep cards, a ranked top 3 Focus), `weekly-planner` (last week's numbers, the week ahead, suggested goals) and `monthly-planner` (month scorecard, what moved, what stalled). Shared rules in `skills/planner/references/`, starter templates in `skills/planner/templates/`. `scripts/planner.py` (stdlib only) renders notes from the vault's own templates or the starters, writes only inside `<!-- planner:NAME -->` blocks, and computes scorecards, due items, focus candidates and time strips. Vault comes from `--vault`, `$VAULT_OS_VAULT_ROOT`, or the current directory, and the script refuses a folder that is not a vault. Moved here from `saixso/obsidian-vault` `.vault-os/planner/`. Tests: `make test-planner`. Guide: `docs/planner.md`.
+
 - **hot-sync.** Deterministic `scripts/hot-sync.sh` regenerates `wiki/hot.md` Ground Truth from git + plugin.json; preserves Active Threads markers. Skill + `/hot-sync` command. SessionStart/Stop hooks run the script instead of asking the LLM to rewrite hot.md. Fingerprint skip avoids dirtying the tree when nothing changed. Tests: `make test-hot-sync`.
 
 ### Changed
