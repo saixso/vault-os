@@ -40,6 +40,7 @@ A Cursor plugin and Obsidian vault that builds persistent, compounding knowledge
 | `obsidian-markdown` | Obsidian syntax reference |
 | `obsidian-bases` | Obsidian Bases (.base files) |
 | `planner` | Daily, weekly, monthly notes from calendar, meetings, mail; routes to `daily-planner`, `weekly-planner`, `monthly-planner` |
+| `bets` | Bets with KPIs, scored by `scripts/bets.py` into a Bet Radar note (status, follow-ups, delivery vs outcome) |
 
 ## Critical Conventions
 
