@@ -9,18 +9,24 @@ How links are found, in order:
   1. Named: a note title or alias appears in the idea's text or terms.
      Prefixes like "Idea - " and "Problem - " are ignored when matching.
   2. Search: BM25 over note titles, aliases, tags and the first words of the
-     body. Strong title overlap counts as sure; the rest are "maybe".
+     body. Sure when the titles overlap strongly or every word of the note's
+     title is in the idea; the rest are "maybe" (best few only, --maybe).
+Short one-word titles match only as capital acronyms ("KDS"), and generic file
+names (README, AGENTS, _index, dashboards) are never link targets.
   3. Same meeting: ideas raised in the same meeting link to each other.
 Problem notes (title "Problem - ...", or tag/type problem) go to `solves`.
 
 It also reports:
   - existing: an idea note that already covers this idea (update it, do not
     create a new one).
+  - similar_ideas: other idea notes search found with some title overlap. The
+    agent checks whether one is this idea in other words before creating.
   - alias_suggestions: a term that names an existing note differently (add it
     as an alias). Notes under a protected folder are flagged, and suggestions
     past the per-run cap are flagged.
   - new_terms: a term no note covers, with how often the vault mentioned it
-    before. create_page is true from the second mention on.
+    before. create_page is true from the second mention on, and only for a
+    name (several words, or a word with a capital), never a common word.
 
 Input (stdin, JSON):
   {"date": "2026-11-25",
@@ -32,7 +38,7 @@ Input (stdin, JSON):
 
 Usage:
   idea-links.py --vault VAULT [--ideas-dir DIR] [--protect wiki] [--exclude a,b]
-                [--top 8] [--alias-cap 5] < ideas.json
+                [--top 8] [--maybe 5] [--alias-cap 5] < ideas.json
 
 Standard library only.
 """
@@ -47,14 +53,16 @@ import sys
 from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 
-DEFAULT_EXCLUDE = ["reviews", "templates", "_templates", "raw", ".raw", "assets", "node_modules"]
+DEFAULT_EXCLUDE = ["reviews", "templates", "_templates", "raw", ".raw", "assets", "node_modules", "dashboards"]
 DEFAULT_IDEAS_DIR = "ideas"
 PREFIX_RE = re.compile(r"^(idea|problem|bet|moc|pitch|concept)\s*[-_:]\s*", re.I)
-GENERIC = set("readme index home inbox projects areas resources archives untitled kanban log hot notes todo ideas idea problem problems".split())
+GENERIC = set("readme index home inbox projects areas resources archives untitled kanban log hot notes todo ideas idea problem problems "
+              "dashboard dashboards agents claude changelog contributing license template templates".split())
 STOP = set(
     "a an and are as at be but by for from has have how i if in into is it its of on or our so that the their them then there these "
     "they this to up was we what when where which who why will with you your not no can all any more most one two new use using via "
-    "per vs get got make need needs should would could do does done just like also only than very over out about after before".split()
+    "per vs get got make need needs should would could do does done just like also only than very over out about after before "
+    "each every some other first take see give right part based during end build start put tell try ship move often runs".split()
 )
 FIELD_RE = re.compile(r"^(\w[\w-]*):\s*(.*)$")
 LINK_RE = re.compile(r"\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]")
@@ -65,8 +73,17 @@ def norm(s: str) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", s.lower()))
 
 
+def stem(t: str) -> str:
+    """Fold simple plurals so "operations" meets "operation"."""
+    if len(t) > 4 and t.endswith("ies"):
+        return t[:-3] + "y"
+    if len(t) > 4 and t.endswith("s") and not t.endswith("ss"):
+        return t[:-1]
+    return t
+
+
 def tokens(s: str) -> list[str]:
-    return [t for t in re.findall(r"[a-z0-9]+", s.lower()) if t not in STOP and len(t) > 1]
+    return [stem(t) for t in re.findall(r"[a-z0-9]+", s.lower()) if t not in STOP and len(t) > 1 and not t.isdigit()]
 
 
 def strip_prefix(name: str) -> str:
@@ -116,7 +133,9 @@ class Note:
 
     @property
     def is_problem(self) -> bool:
-        return self.name.lower().startswith("problem") or "problem" in self.tags or self.kind == "problem"
+        if re.match(r"(?i)idea\b", self.name) or is_noise(self.name):
+            return False
+        return bool(re.match(r"(?i)problem\s*[-:]", self.name)) or "problem" in self.tags or self.kind == "problem"
 
 
 def under(path: str, folders: list[str]) -> bool:
@@ -161,7 +180,7 @@ def count_inbound(notes: list[Note]) -> None:
 
 def usable_name(s: str) -> bool:
     k = norm(s)
-    if not k or k in GENERIC or k.startswith("untitled") or re.fullmatch(r"[\d ]+", k):
+    if not k or s.strip().startswith("_") or k in GENERIC or k.startswith("untitled") or re.fullmatch(r"[\d ]+", k):
         return False
     parts = k.split()
     if len(parts) == 1 and (len(k) < 5 or k in STOP):
@@ -170,10 +189,28 @@ def usable_name(s: str) -> bool:
     return True
 
 
+def is_noise(name: str) -> bool:
+    """File names that are never link targets: README, AGENTS, _index, dashboard."""
+    return name.strip().startswith("_") or norm(name) in GENERIC
+
+
+def is_acronym(s: str) -> bool:
+    k = norm(s)
+    return len(k.split()) == 1 and (len(k) < 5 or k in STOP)
+
+
 def name_index(notes: list[Note]) -> dict[str, list[Note]]:
+    """Usable titles and aliases. Short one-word keys are acronyms and match only in capitals."""
     idx: dict[str, list[Note]] = defaultdict(list)
     for n in notes:
-        for s in {n.name, strip_prefix(n.name), *n.aliases}:
+        names = {n.name, strip_prefix(n.name), *n.aliases}
+        for s in list(names):  # "Model Context Protocol (MCP)" also answers to "MCP" and the words outside
+            m = re.fullmatch(r"(.+?)\s*\(([^()]+)\)\s*", s)
+            if m:
+                names.add(m.group(1))
+                if m.group(2).strip().isupper():  # (MCP) yes, (Network) or (End-to-End) no
+                    names.add(m.group(2))
+        for s in names:
             if usable_name(s):
                 k = norm(s)
                 if n not in idx[k]:
@@ -190,6 +227,8 @@ def named_matches(text: str, idx: dict[str, list[Note]]) -> dict[str, tuple[Note
     for i in range(len(toks)):
         for j in range(min(len(toks), i + MAX_NGRAM), i, -1):
             k = " ".join(toks[i:j])
+            if k in idx and is_acronym(k) and not re.search(r"(?<!\w)" + re.escape(k.upper()) + r"(?!\w)", text):
+                continue  # "KDS" matches, "kds" does not
             for n in idx.get(k, []):
                 found.setdefault(n.path, (n, k))
     return found
@@ -221,6 +260,7 @@ class BM25:
                 if f:
                     s += self.idf[t] * f * (self.k1 + 1) / (f + self.k1 * (1 - self.b + self.b * self.dl[i] / self.avg))
                     hit.append(t)
+            hit.sort(key=lambda t: -self.idf[t])  # rarest shared words first
             if s > 0:
                 out.append((s, self.notes[i], hit))
         out.sort(key=lambda x: (-x[0], -x[1].inbound, x[1].path))
@@ -287,12 +327,20 @@ def short_reason(basis: str, hit: list[str] | None = None, term: str = "") -> st
     return ("shares " + ", ".join(words)) if words else "related by search"
 
 
-def run(vault: str, data: dict, ideas_dir: str, protect: list[str], exclude: list[str], top: int, alias_cap: int) -> dict:
+def name_like(term: str) -> bool:
+    """A page only for names: several words, or a word with a capital (Supportal, KDS), not "alerts"."""
+    t = term.strip()
+    return len(t.split()) > 1 or any(c.isupper() for c in t)
+
+
+def run(vault: str, data: dict, ideas_dir: str, protect: list[str], exclude: list[str], top: int, alias_cap: int,
+        max_maybe: int = 5) -> dict:
     notes = load_vault(vault, exclude)
     count_inbound(notes)
     idx = name_index(notes)
     bm = BM25(notes)
     idea_notes = [n for n in notes if under(n.path, [ideas_dir]) or "idea" in n.tags or n.kind == "idea"]
+    idea_set = set(idea_notes)
     ideas = data.get("ideas", [])
     batch_terms: Counter = Counter()
     for it in ideas:
@@ -308,6 +356,7 @@ def run(vault: str, data: dict, ideas_dir: str, protect: list[str], exclude: lis
         title, summary = it.get("title", ""), it.get("summary", "")
         terms = it.get("terms", [])
         text = " . ".join([title, summary, *terms])
+        idea_toks = set(tokens(text))
 
         existing = None
         for n in idea_notes:
@@ -316,12 +365,13 @@ def run(vault: str, data: dict, ideas_dir: str, protect: list[str], exclude: lis
                 existing = {"note": n.name, "path": n.path, "overlap": round(s, 2)}
 
         sure, maybe, solves = {}, {}, {}
+        similar = {}  # other idea notes that may be this idea in other words
 
         def put(bucket, n, basis, hit=None):
-            if existing and n.path == existing["path"]:
+            if (existing and n.path == existing["path"]) or is_noise(n.name):
                 return
-            for b in (sure, maybe, solves):
-                if n.path in b:
+            for b in (sure, maybe, solves, similar):
+                if n.path in b or any(v["note"] == n.name for v in b.values()):
                     return
             target = solves if n.is_problem else bucket
             target[n.path] = {"note": n.name, "path": n.path, "reason": short_reason("solves" if n.is_problem else basis, hit),
@@ -330,7 +380,12 @@ def run(vault: str, data: dict, ideas_dir: str, protect: list[str], exclude: lis
         for path, (n, _k) in named_matches(text, idx).items():
             put(sure, n, "named")
         for score, n, hit in bm.search(title + " " + summary, top):
-            strong = title_overlap(title, n.name) >= 0.5 or len(set(hit) & set(tokens(strip_prefix(n.name)))) >= 3
+            if n in idea_set and not (existing and n.path == existing["path"]) and title_overlap(title, n.name) >= 0.2:
+                similar[n.path] = {"note": n.name, "path": n.path, "overlap": round(title_overlap(title, n.name), 2)}
+                continue
+            name_toks = set(tokens(strip_prefix(n.name)))
+            strong = (title_overlap(title, n.name) >= 0.5 or len(set(hit) & name_toks) >= 3
+                      or (len(name_toks) >= 2 and name_toks <= idea_toks))
             put(sure if strong else maybe, n, "search", hit)
 
         same = [t for t in by_meeting.get(it.get("meeting", ""), []) if t and t != title]
@@ -342,7 +397,9 @@ def run(vault: str, data: dict, ideas_dir: str, protect: list[str], exclude: lis
             if not k or k in idx or k in named_keys:
                 continue
             n = fuzzy_note(term, notes)
-            if n:
+            if n and k in {norm(x) for x in [n.name, strip_prefix(n.name), *n.aliases]}:
+                put(sure, n, "named")  # same name in other capitals: a link, not a new alias
+            elif n:
                 over = alias_used >= alias_cap
                 prot = under(n.path, protect)
                 if not over and not prot:
@@ -355,7 +412,7 @@ def run(vault: str, data: dict, ideas_dir: str, protect: list[str], exclude: lis
                     texts = all_texts(vault)
                 before = mentions(term, texts)
                 new_terms.append({"term": term, "mentions_before": before, "mentions_today": batch_terms[k],
-                                  "create_page": before + batch_terms[k] >= 2})
+                                  "create_page": name_like(term) and before + batch_terms[k] >= 2})
 
         if existing:
             action = "update"
@@ -364,12 +421,14 @@ def run(vault: str, data: dict, ideas_dir: str, protect: list[str], exclude: lis
         else:
             action = "daily-line-only"
 
+        maybe_list = list(maybe.values())  # best search rank first
         out_ideas.append({
             "title": title,
             "meeting": it.get("meeting", ""),
             "action": action,
             "existing": existing,
-            "links": {"sure": list(sure.values()), "maybe": list(maybe.values()), "solves": list(solves.values())},
+            "similar_ideas": list(similar.values()),
+            "links": {"sure": list(sure.values()), "maybe": maybe_list[:max_maybe], "solves": list(solves.values())},
             "same_meeting": same,
             "alias_suggestions": aliases,
             "new_terms": new_terms,
@@ -393,6 +452,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--protect", default="wiki", help="comma list of folders whose notes never get alias edits (default: wiki)")
     ap.add_argument("--exclude", default=",".join(DEFAULT_EXCLUDE), help="comma list of folders left out of link targets")
     ap.add_argument("--top", type=int, default=8, help="search results per idea (default 8)")
+    ap.add_argument("--maybe", type=int, default=5, help="maybe links kept per idea, best first (default 5)")
     ap.add_argument("--alias-cap", type=int, default=5, help="alias edits allowed per run (default 5)")
     a = ap.parse_args(argv)
     vault = os.path.abspath(a.vault or os.environ.get("VAULT_OS_VAULT_ROOT") or os.getcwd())
@@ -405,7 +465,7 @@ def main(argv: list[str]) -> int:
         print(f"idea-links: input is not JSON ({e})", file=sys.stderr)
         return 2
     split = lambda s: [x.strip().strip("/") for x in s.split(",") if x.strip()]
-    res = run(vault, data, a.ideas_dir.strip("/"), split(a.protect), split(a.exclude), a.top, a.alias_cap)
+    res = run(vault, data, a.ideas_dir.strip("/"), split(a.protect), split(a.exclude), a.top, a.alias_cap, a.maybe)
     json.dump(res, sys.stdout, indent=2, ensure_ascii=False)
     sys.stdout.write("\n")
     return 0

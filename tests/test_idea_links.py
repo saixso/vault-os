@@ -130,9 +130,69 @@ class IdeaLinks(unittest.TestCase):
         paths = {l["path"] for i in out["ideas"] for k in ("sure", "maybe", "solves") for l in i["links"][k]}
         self.assertFalse(any(p.startswith("reviews/") for p in paths))
 
+    def test_noise_notes_are_not_links_and_problems_are_strict(self):
+        extra = {
+            "AGENTS.md": "Agent rules for this vault.\n",
+            "areas/problems/README.md": "---\ntags: [problem]\n---\nHow to write a problem note about devices and sites.\n",
+            "dashboards/Problem Tracker Dashboard.md": "Devices fail and sites alert. Problem list.\n",
+            "archive/Router Firmware Rollout.md": "Old copy: staged firmware rollout for site routers.\n",
+            "areas/KDS.md": "Kitchen display screens at a site.\n",
+            "areas/Model Context Protocol (MCP).md": "A protocol for agent tools.\n",
+            "areas/Eero.md": "Mesh wifi brand.\n",
+            "areas/Vendor Selection (Tools).md": "How we pick vendors.\n",
+        }
+        for rel, body in extra.items():
+            p = os.path.join(self.v, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w") as f:
+                f.write(body)
+        data = {"date": "2026-11-25", "ideas": [
+            {"title": "Agents alert sites when devices fail", "summary": "Agents check the kds screens and routers.",
+             "meeting": "m", "terms": ["alerts", "Pager Thing"]},
+            {"title": "Weekly firmware pilot ring", "summary": "Try new router firmware on a small pilot ring first.",
+             "meeting": "n", "terms": []},
+            {"title": "KDS health check", "summary": "Check every KDS each morning.", "meeting": "n", "terms": []},
+            {"title": "Agent tool evals", "summary": "Score how agents use tools.", "meeting": "n", "terms": ["MCP", "eero"]},
+        ]}
+        out = self.by_title(self.run_cli(data))
+        a = out["Agents alert sites when devices fail"]
+        linked = [l["note"] for k in ("sure", "maybe", "solves") for l in a["links"][k]]
+        for noise in ("AGENTS", "README", "Problem Tracker Dashboard"):
+            self.assertNotIn(noise, linked)
+        self.assertNotIn("KDS", {l["note"] for l in a["links"]["sure"]})  # "kds" in lower case is not the acronym
+        self.assertEqual([l["note"] for l in a["links"]["solves"]], ["Problem - Devices Fail Silently"])
+        self.assertLessEqual(len(a["links"]["maybe"]), 5)
+        terms = {t["term"]: t for t in a["new_terms"]}
+        self.assertFalse(terms["alerts"]["create_page"])  # a common word never gets a page
+        c = out["Weekly firmware pilot ring"]
+        names = [l["note"] for k in ("sure", "maybe") for l in c["links"][k]]
+        self.assertEqual(names.count("Router Firmware Rollout"), 1)  # same name in two folders: one link
+        k = out["KDS health check"]
+        self.assertIn("KDS", {l["note"] for l in k["links"]["sure"]})
+        e = out["Agent tool evals"]
+        self.assertTrue({"Model Context Protocol (MCP)", "Eero"} <= {l["note"] for l in e["links"]["sure"]})
+        self.assertNotIn("Vendor Selection (Tools)", {l["note"] for l in e["links"]["sure"]})  # "(Tools)" is not a name
+        self.assertEqual(e["alias_suggestions"], [])  # "eero" is Eero in other capitals, not a new alias
+
+    def test_similar_ideas_are_flagged_not_linked(self):
+        data = {"date": "2026-11-25", "ideas": [{"title": "Device health alerts per site",
+                "summary": "Alert when a device health score drops.", "meeting": "m", "terms": []}]}
+        d = self.run_cli(data)["ideas"][0]
+        self.assertEqual(d["action"], "daily-line-only")
+        self.assertEqual([x["note"] for x in d["similar_ideas"]], ["Idea - Shared Device Health Score"])
+        linked = {l["note"] for k in ("sure", "maybe") for l in d["links"][k]}
+        self.assertNotIn("Idea - Shared Device Health Score", linked)
+
+    def test_plurals_fold(self):
+        self.assertEqual(il.tokens("Proactive Network Operations"), il.tokens("proactive network operation"))
+        self.assertEqual(il.stem("families"), "family")
+        self.assertEqual(il.stem("access"), "access")
+
     def test_usable_names_skip_generic_and_short_words(self):
         self.assertFalse(il.usable_name("README"))
         self.assertFalse(il.usable_name("Home"))
+        self.assertFalse(il.usable_name("_index"))
+        self.assertFalse(il.usable_name("AGENTS"))
         self.assertTrue(il.usable_name("KDS"))
         self.assertFalse(il.usable_name("kds"))
         self.assertTrue(il.usable_name("Router Firmware Rollout"))

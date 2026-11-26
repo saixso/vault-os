@@ -25,7 +25,8 @@ Runs in daily-planner when it closes the day, and weekly-planner sums it up.
    committed to something about them. Skip HR, health, money and legal matters.
 2. For each idea write one input line: `title`, a `summary` of one or two
    sentences in your own words, `meeting` (title only), `terms` (the names of
-   things it touches: systems, projects, concepts, teams, people), and
+   things it touches: systems, projects, concepts, teams, people; names only,
+   not common words like "alerts"), and
    `commitment: true` if the user said they will do something about it, or
    `recurs: true` if it came up before.
 3. Run the link finder (read-only):
@@ -34,7 +35,9 @@ Runs in daily-planner when it closes the day, and weekly-planner sums it up.
    python3 PLUGIN/scripts/idea-links.py --vault VAULT --ideas-dir IDEAS < ideas.json
    ```
 
-4. Act on each idea by its `action`:
+4. Check `similar_ideas` first: if one of them is this idea in other words,
+   treat the idea as `update` on that note. Then act on each idea by its
+   `action`:
    - `update`: add one dated line to the existing note's `## Moves` and change
      `status:` if the stage moved. Add any new sure links.
    - `create`: a new note in `IDEAS` in the shape below.
@@ -43,7 +46,10 @@ Runs in daily-planner when it closes the day, and weekly-planner sums it up.
 5. Links:
    - `sure` links go on the note under `## Links`. Keep every one that a reason
      of 6 words or fewer can explain; drop the rest. No cap on links.
-   - `maybe` links go to Link Suggestions, one checkbox each:
+   - `maybe` links are candidates from search. Read each title, and the note
+     when unsure. Move it to `## Links` when you can name the tie in 6 words or
+     fewer; drop it when the shared words are a coincidence. File at most 3
+     unsure ones per idea to Link Suggestions, one checkbox each:
      `- [ ] [[Idea]] ↔ [[Note]] (reason)`.
    - `solves` go in frontmatter `solves:`, only when the idea plainly addresses
      the problem; otherwise treat them as `maybe`.
