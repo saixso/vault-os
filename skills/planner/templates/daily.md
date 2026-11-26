@@ -98,6 +98,14 @@ After it: tick #outcome if you got the outcome, then add any new promises or dec
 
 ---
 
+## Ideas
+
+<!-- Ideas from today's meetings that moved: 3 to 5 lines, each a link to its idea note and what moved. Notes live in the ideas folder. -->
+<!-- planner:ideas -->
+<!-- /planner:ideas -->
+
+---
+
 ## Done
 
 -

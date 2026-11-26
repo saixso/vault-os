@@ -49,6 +49,14 @@ short mode
 
 ---
 
+## Ideas moved
+
+<!-- Ideas that moved, new ones, ones untouched for 14+ days, and a map of this week's new links. -->
+<!-- planner:ideas-moved -->
+<!-- /planner:ideas-moved -->
+
+---
+
 ## Scorecard
 
 ```dataview
