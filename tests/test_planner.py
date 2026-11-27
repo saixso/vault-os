@@ -66,7 +66,9 @@ class Render(VaultCase):
         self.assertEqual(rel, "reviews/daily/2026-11-24.md")
         text = self.read(rel)
         self.assertIn("# Tuesday, November 24, 2026", text)
-        self.assertIn("![[Weekly Review 2026-W48#2026-W48 Goals]]", text)
+        self.assertIn("## Add here", text)
+        self.assertIn("## My review", text)
+        self.assertNotIn("<!--  ", text)
         self.assertIn("created: 2026-11-24", text)
         self.assertNotIn("<%", text)
         self.assertNotIn("tp.file.move", text)
@@ -279,11 +281,79 @@ class TodosAndTime(VaultCase):
         weekly = self.read("reviews/weekly/Weekly Review 2026-W48.md")
         for text in (daily, weekly):
             self.assertIn("```tasks", text)
-            self.assertIn("task.due.fromNow.groupText", text)
+        self.assertIn("task.due.fromNow.groupText", weekly)
+        self.assertIn("happens after 2026-11-09\nhappens before 2026-11-28", daily)
+        self.assertIn("task.file.filenameWithoutExtension === '2026-11-24'", daily)
+        self.assertIn("done in 2026-11-22 2026-11-28", weekly)
+        self.assertIn("due in 2026-11-22 2026-11-28", weekly)
         self.assertIn("<!-- planner:todo -->", daily)
         self.assertIn("## This week", weekly)
         self.assertIn("<!-- planner:ideas -->", daily)
         self.assertIn("<!-- planner:ideas-moved -->", weekly)
+
+
+class LeanDaily(VaultCase):
+    def note(self, day, add_here="", review=""):
+        p = planner.cmd_render(self.v, "daily", day)
+        with open(p) as f:
+            text = f.read()
+        if add_here:
+            text = text.replace("## Add here\n\n- [ ]\n", "## Add here\n\n" + add_here, 1)
+        if review:
+            text = text.replace("Day rating:\nWhat I saw in reality:\nNotes for Claude:\n", review, 1)
+        with open(p, "w") as f:
+            f.write(text)
+        return p
+
+    def test_scheduled_dates_and_add_here_tasks(self):
+        self.note(D(2026, 11, 27),
+                  "- [ ] Draft January install announcement \u23f3 2026-11-30 \U0001F4C5 2026-12-02\n"
+                  "- [ ] Ask Kim about the room\n"
+                  "- [ ] #promise Send Brandon the doc [to:: Brandon] \U0001F4C5 2026-11-27\n")
+        o = planner.cmd_open_items(self.v, D(2026, 11, 28))
+        soon = [t["text"] for t in o["todos_due_soon"]]
+        self.assertEqual(soon, ["Draft January install announcement \u23f3 2026-11-30 \U0001F4C5 2026-12-02"])
+        self.assertEqual(o["todos_due_soon"][0]["scheduled"], "2026-11-30")
+        self.assertTrue(o["todos_due_soon"][0]["added"])
+        self.assertEqual([t["text"] for t in o["added_undated"]], ["Ask Kim about the room"])
+        self.assertEqual([p["to"] for p in o["promises_due"]], ["Brandon"])
+
+    def test_my_review_is_read_and_passed_to_the_next_day(self):
+        self.note(D(2026, 11, 27), review="Day rating: 4, good focus morning\nWhat I saw in reality: installs ran late\n"
+                                          "Notes for Claude: put Brandon first\nand keep Mondays light\n")
+        r = planner.my_review(self.read("reviews/daily/2026-11-27.md"))
+        self.assertEqual((r["score"], r["saw"]), (4, "installs ran late"))
+        self.assertEqual(r["notes"], "put Brandon first and keep Mondays light")
+        self.note(D(2026, 11, 30))
+        o = planner.cmd_open_items(self.v, D(2026, 11, 30))
+        self.assertEqual(o["my_review"]["rating"], "4, good focus morning")
+        empty = planner.my_review(self.read("reviews/daily/2026-11-30.md"))
+        self.assertFalse(empty["written"])
+
+    def test_tick_stamps_done_date_and_evidence(self):
+        p = self.note(D(2026, 11, 23), "- [ ] #promise Send Alex the plan [to:: Alex] \U0001F4C5 2026-11-24\n- [ ] Book the room\n")
+        line = planner.tick(p, "send alex", "sent mail Nov 24", D(2026, 11, 24))
+        self.assertEqual(line, "- [x] #promise Send Alex the plan [to:: Alex] \U0001F4C5 2026-11-24 [evidence:: sent mail Nov 24] \u2705 2026-11-24")
+        with self.assertRaises(SystemExit):
+            planner.tick(p, "send alex", "again", D(2026, 11, 24))
+
+    def test_week_review(self):
+        self.note(D(2026, 11, 23),
+                  "- [x] Done in Obsidian \u2705 2026-11-24\n- [x] Ticked by hand\n"
+                  "- [ ] Still open, came due \U0001F4C5 2026-11-26\n- [ ] Due next week \U0001F4C5 2026-12-02\n",
+                  "Day rating: 3\nWhat I saw in reality:\nNotes for Claude:\n")
+        self.note(D(2026, 11, 25), review="Day rating: 5 great\nWhat I saw in reality:\nNotes for Claude:\n")
+        self.note(D(2026, 10, 1), "- [ ] Old dated box \U0001F4C5 2026-10-02\n")
+        os.makedirs(self.path("projects"))
+        with open(self.path("projects/p.md"), "w") as f:
+            f.write("- [x] Project task \u2705 2026-11-27\n- [x] Old project task \u2705 2026-11-01\n")
+        w = planner.cmd_week_review(self.v, D(2026, 11, 22), D(2026, 11, 28))
+        self.assertEqual([x["text"][:14] for x in w["done"]], ["Done in Obsidi", "Project task \u2705"])
+        self.assertEqual([x["text"] for x in w["done_without_date"]], ["Ticked by hand"])
+        self.assertEqual([x["due"] for x in w["came_due_still_open"]], ["2026-11-26"])
+        self.assertEqual(w["stale_open_count"], 1)
+        self.assertEqual((w["ratings"], w["rating_avg"]), ([3, 5], 4.0))
+        self.assertNotIn("templates", " ".join(x["file"] for x in w["done"]))
 
 
 class MeetingOutcomes(VaultCase):

@@ -8,8 +8,8 @@ blocks, and counts the scorecard.
 | Skill | When | Writes |
 |---|---|---|
 | `planner` | "set up the planner", or any planner ask | routes to the three below; setup |
-| `daily-planner` | weekday evenings | today's promises, to-dos, decisions, scorecard; next workday's prep, meeting cards and top 3 |
-| `weekly-planner` | Sunday evening | last week's summary, the week ahead, suggested goals |
+| `daily-planner` | weekday evenings | today's promises, to-dos, decisions, scorecard; next workday's header line, 3-line meeting cards and top 3; reads the user's Add here and My review |
+| `weekly-planner` | Sunday evening | last week's summary (done by Tasks done date, came due and still open, day ratings), the week ahead, suggested goals |
 | `monthly-planner` | last day of the month | month scorecard, what moved, what stalled |
 
 Rules every run follows: `skills/planner/references/note-contract.md` (blocks,

@@ -4,17 +4,19 @@ What the planner may write, and in what shape. Every skill follows this.
 
 ## Ownership
 
-- The user owns everything outside a planner block. Never edit Log, Done, Notes, Goals, or any line they wrote.
+- The user owns everything outside a planner block. Never edit Add here, My review, Goals, or any line they wrote.
 - The planner writes only between `<!-- planner:NAME -->` and `<!-- /planner:NAME -->`.
+- **Add here** is the one place the user and other agents add tasks during the day, in the line format below. The planner reads it and never edits it; its untagged tasks count as to-dos.
+- **My review** is the user's own: a day rating in their words, what they saw in reality, notes for Claude. The planner never writes there. The next daily run reads it (`P open-items` gives it as `my_review`) and acts on the notes; the weekly run sums it up (`P week-review`).
 - Write blocks only through `scripts/planner.py` (`block-set` replaces a block, `block-add` appends lines that are not already in the note). Never hand-edit a block.
-- Exception: ticking a `#promise` box. Allowed only with clear evidence (a sent mail or a meeting where it was done), and the line gets `[evidence:: one line]` so the user can see why.
+- Exception: ticking a `#promise` box. Allowed only with clear evidence (a sent mail or a meeting where it was done), and only with `P tick FILE "text" --evidence "one line" --date DAY`. It adds `[evidence:: ]` so the user can see why, and the `✅ DAY` done date the Tasks plugin would add, so the weekly review counts it.
 - Exception: the idea pass (`ideas.md`) may create and update notes in the ideas folder, add an `aliases:` entry to an existing note (capped per run, never under `wiki/`), add an `ideas:` entry to a problem note, and append checkboxes to Link Suggestions. Nothing else outside a block.
 
 ## Blocks
 
 | Note | Block | Written by | How |
 |---|---|---|---|
-| daily | `prep` | daily-planner, evening before | block-set |
+| daily | `prep` | daily-planner, evening before: one header line under the title | block-set |
 | daily | `focus` | daily-planner, evening before, only while all 3 boxes are empty (see focus.md) | focus-fill |
 | daily | `meetings` | daily-planner, evening before (see meeting-prep.md) | block-set |
 | daily | `todo` | daily-planner, same evening | block-add |
@@ -26,27 +28,51 @@ What the planner may write, and in what shape. Every skill follows this.
 | weekly | `ideas-moved` | weekly-planner: ideas moved, new, untouched 14+ days, link map (see ideas.md) | block-set |
 | monthly | `month-scorecard`, `moved`, `stalled` | monthly-planner | block-set |
 
+## Word budgets
+
+The note is for working from, not reading. Keep to these:
+
+| Part | Budget |
+|---|---|
+| Prep header line | 15 words: day, meetings, hours, open block |
+| Focus line | 10 words before its dates, no why text (reasons go in the run's report) |
+| Meeting card | 3 lines, 30 words (see meeting-prep.md) |
+| Task line | 10 words before its dates and fields |
+| Ideas block | 3 to 5 lines |
+
+No prose lists of what is due or carried: the Today query shows overdue, today and the next 3 days by itself, and an open task stays there until it is ticked. Templates hold no instruction comments; the rules live here.
+
 ## Line formats
 
-Due dates use the Obsidian Tasks emoji format the vault already uses, `📅 YYYY-MM-DD`, so the Tasks "Due" queries in the daily and weekly notes can group and count down. Dataview reads the same date as `due`. Other fields are Dataview inline fields. Older lines with `[due:: ]` still count.
+Dates use the Obsidian Tasks emoji format: `⏳ YYYY-MM-DD` is the day to work on it (scheduled), `📅 YYYY-MM-DD` is the deadline (due), `✅ YYYY-MM-DD` is the day it was done. The daily Today query shows a task on the earlier of ⏳ and 📅, so **every to-do, promise and Focus line the planner writes gets a ⏳**: the day it should be worked on. Add 📅 only when there is a real deadline. Dataview reads the same dates as `scheduled`, `due` and `completion`. Other fields are Dataview inline fields. Older lines with `[due:: ]` still count.
+
+Add here line, for the user and any other agent:
+
+```
+- [ ] Draft January install announcement ⏳ 2026-11-30 📅 2026-12-02
+- [ ] #promise Send Brandon the hardware doc [to:: Brandon] ⏳ 2026-11-27
+```
+
+An agent other than the planner that adds a task during the day writes it here, never inside a planner block.
 
 To-do the user owns, with no one waiting on it, filed on the day it came up:
 
 ```
-- [ ] #todo Answer the Friday 1:1 invite 📅 2026-11-24 [est:: 5m] [src:: Calendar, Nov 23]
+- [ ] #todo Answer the Friday 1:1 invite ⏳ 2026-11-24 [est:: 5m] [src:: Calendar, Nov 23]
 - [ ] #outcome Vendor picked [mtg:: Sam 1:1]   (one per meeting card; only the user ticks it)
 ```
 
-- `📅` only when a date was said, plainly implied, or set by a meeting it must happen before (then say which in `src`). Otherwise leave it out; it lands under Undated, which asks the user for a date.
+- `⏳` always: the day to work on it, at the latest the day before any `📅`. When nothing sets the day, use the next workday.
+- `📅` only when a date was said, plainly implied, or set by a meeting it must happen before (then say which in `src`).
 - `est` is optional, a rough time like `15m` or `2h`, only when the work is clear enough to size.
 
 Promise the user made, filed on the day it was made:
 
 ```
-- [ ] #promise Send the vendor the pilot results [to:: Alex Rivera] 📅 2026-11-27 [src:: Pilot sync, Nov 24]
+- [ ] #promise Send the vendor the pilot results [to:: Alex Rivera] ⏳ 2026-11-26 📅 2026-11-27 [src:: Pilot sync, Nov 24]
 ```
 
-- `to` is who is owed. `📅` only when a date was said or plainly implied ("by Friday"); otherwise leave it out.
+- `to` is who is owed. `⏳` always, as for to-dos. `📅` only when a date was said or plainly implied ("by Friday").
 - `src` names the meeting or mail thread by title and date, never a link or message id.
 
 Decision the user made or owns, filed on the day it was made:

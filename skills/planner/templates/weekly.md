@@ -42,6 +42,29 @@ short mode
 
 ---
 
+## Done this week
+
+```tasks
+done in <% moment().startOf("week").format("YYYY-MM-DD") %> <% moment().endOf("week").format("YYYY-MM-DD") %>
+path does not include templates
+group by function task.done.format("dddd D")
+short mode
+```
+
+---
+
+## Came due, still open
+
+```tasks
+not done
+path includes reviews/daily
+due in <% moment().startOf("week").format("YYYY-MM-DD") %> <% moment().endOf("week").format("YYYY-MM-DD") %>
+sort by due
+short mode
+```
+
+---
+
 ## This week
 
 <!-- planner:week-ahead -->

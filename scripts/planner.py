@@ -20,6 +20,9 @@ Usage:
   planner.py focus-candidates YYYY-MM-DD   (JSON: goals, due promises, to-dos, meeting outcomes, ranked)
   planner.py focus-fill FILE      < lines  (fill Focus only while all its boxes are empty)
   planner.py stats START END              (JSON: totals over daily notes in range)
+  planner.py week-review START END        (JSON: done, came due and still open, stale, My review per day)
+  planner.py my-review FILE               (JSON: the user's My review section of one daily note)
+  planner.py tick FILE TEXT --evidence E [--date D]  (tick one open task, stamp evidence and the done date)
   planner.py paths YYYY-MM-DD             (JSON: daily, weekly, monthly note paths)
 """
 from __future__ import annotations
@@ -61,8 +64,14 @@ BLOCK_HEADINGS = {
 TASK_RE = re.compile(r"^\s*[-*] \[( |x|X)\] (.*)$")
 LIST_RE = re.compile(r"^\s*[-*] (?:\[[ xX]\] )?(.*)$")
 FIELD_RE = re.compile(r"\[(\w+)::\s*([^\]]*)\]")
-# Obsidian Tasks emoji format, which the vault uses: due date.
+# Obsidian Tasks emoji format, which the vault uses: due, scheduled and done dates.
 DUE_EMOJI_RE = re.compile(r"\U0001F4C5\ufe0f?\s*(\d{4}-\d{2}-\d{2})")
+SCHED_EMOJI_RE = re.compile(r"\u23f3\ufe0f?\s*(\d{4}-\d{2}-\d{2})")
+DONE_EMOJI_RE = re.compile(r"\u2705\ufe0f?\s*(\d{4}-\d{2}-\d{2})")
+# The user's own sections in the daily note. The planner reads them and never writes there.
+ADD_HERE = "Add here"
+MY_REVIEW = "My review"
+REVIEW_LABELS = {"day rating": "rating", "what i saw in reality": "saw", "notes for claude": "notes"}
 
 
 # ---------- dates (mirror moment.js "en" locale, which Templater uses) ----------
@@ -271,7 +280,19 @@ def fields(line: str) -> dict:
     m = DUE_EMOJI_RE.search(line)
     if m and not out.get("due"):
         out["due"] = m.group(1)
+    m = SCHED_EMOJI_RE.search(line)
+    if m and not out.get("scheduled"):
+        out["scheduled"] = m.group(1)
+    m = DONE_EMOJI_RE.search(line)
+    if m:
+        out["done_on"] = m.group(1)
     return out
+
+
+def happens(item: dict) -> dt.date | None:
+    """Tasks plugin 'happens': the earlier of the scheduled and due dates."""
+    ds = [d for d in (_date_or_none(item.get("scheduled")), _date_or_none(item.get("due"))) if d]
+    return min(ds) if ds else None
 
 
 def has_tag(line: str, tag: str) -> bool:
@@ -289,14 +310,42 @@ def daily_files(vault: str) -> list[tuple[dt.date, str]]:
 
 
 def all_todos(vault: str) -> list[dict]:
-    """Every #todo task across daily notes (the user's own to-dos, no recipient)."""
+    """Every #todo task across daily notes (the user's own to-dos, no recipient), plus the
+    untagged tasks in each note's Add here section, which the user and other agents write."""
     out = []
     for day, path in daily_files(vault):
+        heading = ""
         with open(path, encoding="utf-8") as f:
             for line in f.read().split("\n"):
+                if line.startswith("## "):
+                    heading = line[3:].strip()
+                    continue
                 t = TASK_RE.match(line)
-                if t and has_tag(line, "todo"):
-                    out.append({"day": day.isoformat(), "done": t.group(1) != " ", "text": t.group(2).strip(), **fields(line)})
+                if not t or not t.group(2).strip():
+                    continue
+                added = heading == ADD_HERE and not any(has_tag(line, x) for x in ("todo", "promise", "outcome"))
+                if has_tag(line, "todo") or added:
+                    out.append({"day": day.isoformat(), "done": t.group(1) != " ", "text": t.group(2).strip(),
+                                "added": added, **fields(line)})
+    return out
+
+
+def my_review(text: str) -> dict:
+    """The user's My review section: day rating, what they saw, notes for Claude.
+    A line that starts with a label opens that field; lines after it continue it."""
+    out = {"rating": "", "saw": "", "notes": ""}
+    key = None
+    for line in section_lines(text, MY_REVIEW):
+        s = re.sub(r"^\s*[-*] ", "", line).strip()
+        label, sep, rest = s.partition(":")
+        k = REVIEW_LABELS.get(re.sub(r"\s*\(.*\)\s*$", "", label).strip().lower()) if sep else None
+        if k:
+            key, s = k, rest.strip()
+        if key and s:
+            out[key] = (out[key] + " " + s).strip()
+    m = re.search(r"\b([1-5])\b", out["rating"])
+    out["score"] = int(m.group(1)) if m else None
+    out["written"] = any(out[k] for k in ("rating", "saw", "notes"))
     return out
 
 
@@ -417,15 +466,21 @@ def cmd_open_items(vault: str, d: dt.date) -> dict:
     review = [x for x in decisions if not x.get("verdict") and (_date_or_none(x.get("review")) or dt.date.max) <= d]
     todos = [t for t in all_todos(vault) if not t["done"]]
     soon = d + dt.timedelta(days=3)
+    review_prev = None
+    if prev:
+        with open(prev, encoding="utf-8") as f:
+            review_prev = my_review(f.read())
     return {
         "date": d.isoformat(),
         "carried_from": os.path.relpath(prev, vault) if prev else None,
         "carried": carried,
+        "my_review": review_prev,
         "promises_due": sorted(due, key=lambda p: p.get("due", "")),
         "promises_undated": undated,
         "decisions_to_review": sorted(review, key=lambda x: x.get("review", "")),
-        "todos_due_soon": sorted([t for t in todos if (_date_or_none(t.get("due")) or dt.date.max) <= soon], key=lambda t: t["due"]),
-        "todos_undated": [t for t in todos if not _date_or_none(t.get("due"))],
+        "todos_due_soon": sorted([t for t in todos if (happens(t) or dt.date.max) <= soon], key=lambda t: happens(t).isoformat()),
+        "todos_undated": [t for t in todos if not happens(t)],
+        "added_undated": [t for t in todos if t["added"] and not happens(t)],
     }
 
 
@@ -503,6 +558,92 @@ def cmd_stats(vault: str, start: dt.date, end: dt.date) -> dict:
         "decisions_reviewed": reviewed,
         "verdicts": {v: sum(1 for x in reviewed if x.get("verdict") == v) for v in ("skill", "luck", "bad-luck", "bad-call")},
     }
+
+
+def _vault_task_lines(vault: str):
+    """(relative path, line number, line) for every task line in the vault outside templates and dot folders."""
+    for root, dirs, files in os.walk(vault):
+        dirs[:] = sorted(x for x in dirs if not x.startswith(".") and os.path.relpath(os.path.join(root, x), vault) != "templates")
+        for name in sorted(files):
+            if not name.endswith(".md"):
+                continue
+            path = os.path.join(root, name)
+            with open(path, encoding="utf-8") as f:
+                for i, line in enumerate(f.read().split("\n")):
+                    if TASK_RE.match(line):
+                        yield os.path.relpath(path, vault), i, line
+
+
+def cmd_week_review(vault: str, start: dt.date, end: dt.date) -> dict:
+    """What the weekly review needs: tasks done in the range (by the Tasks plugin's done date),
+    ticked boxes in the range's daily notes with no done date, tasks that came due and are still
+    open, older open tasks whose dates have passed, and each day's My review."""
+    done, done_undated, due_open, stale = [], [], [], 0
+    in_range = {day.isoformat() for day, _ in daily_files(vault) if start <= day <= end}
+    for rel, _, line in _vault_task_lines(vault):
+        t = TASK_RE.match(line)
+        text = t.group(2).strip()
+        if not text:
+            continue
+        f = fields(line)
+        is_done = t.group(1) != " "
+        daily = rel.startswith(DAILY_DIR + "/")
+        day = os.path.basename(rel)[:10] if daily else None
+        item = {"file": rel, "text": text, **f}
+        if is_done:
+            on = _date_or_none(f.get("done_on"))
+            if on and start <= on <= end:
+                done.append(item)
+            elif not on and day in in_range and not has_tag(line, "outcome"):
+                done_undated.append(item)
+            continue
+        if not daily:
+            continue
+        due = _date_or_none(f.get("due"))
+        if due and start <= due <= end:
+            due_open.append(item)
+        h = happens(f)
+        if h and h < start - dt.timedelta(days=14):
+            stale += 1
+    reviews = []
+    for day, path in daily_files(vault):
+        if start <= day <= end:
+            with open(path, encoding="utf-8") as fh:
+                r = my_review(fh.read())
+            if r["written"]:
+                reviews.append({"day": day.isoformat(), **r})
+    scores = [r["score"] for r in reviews if r["score"]]
+    return {
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "done": sorted(done, key=lambda x: x.get("done_on", "")),
+        "done_without_date": done_undated,
+        "came_due_still_open": sorted(due_open, key=lambda x: x.get("due", "")),
+        "stale_open_count": stale,
+        "reviews": reviews,
+        "ratings": scores,
+        "rating_avg": round(sum(scores) / len(scores), 1) if scores else None,
+    }
+
+
+def tick(path: str, match: str, evidence: str, on: dt.date) -> str:
+    """Tick the one open task in the note whose text holds `match`, adding [evidence:: ] and
+    the Tasks plugin's done date, so the weekly review counts it like a tick made in Obsidian."""
+    with open(path, encoding="utf-8") as f:
+        lines = f.read().split("\n")
+    hits = [i for i, l in enumerate(lines) if (t := TASK_RE.match(l)) and t.group(1) == " " and match.lower() in t.group(2).lower()]
+    if len(hits) != 1:
+        raise SystemExit(f"tick: {len(hits)} open tasks match {match!r}; give text that matches exactly one")
+    i = hits[0]
+    line = re.sub(r"\[ \]", "[x]", lines[i], count=1).rstrip()
+    if not FIELD_RE.search(line) or "evidence" not in dict((k.lower(), v) for k, v in FIELD_RE.findall(line)):
+        line += f" [evidence:: {evidence.strip()}]"
+    if not DONE_EMOJI_RE.search(line):
+        line += f" \u2705 {on.isoformat()}"
+    lines[i] = line
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return line
 
 
 # ---------- focus ----------
@@ -599,6 +740,10 @@ def main(argv: list[str]) -> int:
     s = sub.add_parser("scorecard"); s.add_argument("file"); s.add_argument("--meeting-hours", type=float)
     o = sub.add_parser("open-items"); o.add_argument("date")
     st = sub.add_parser("stats"); st.add_argument("start"); st.add_argument("end")
+    wr = sub.add_parser("week-review"); wr.add_argument("start"); wr.add_argument("end")
+    mr = sub.add_parser("my-review"); mr.add_argument("file")
+    tk = sub.add_parser("tick"); tk.add_argument("file"); tk.add_argument("text")
+    tk.add_argument("--evidence", required=True); tk.add_argument("--date", help="done date (default today)")
     p = sub.add_parser("paths"); p.add_argument("date")
     fc = sub.add_parser("focus-candidates"); fc.add_argument("date")
     ff = sub.add_parser("focus-fill"); ff.add_argument("file")
@@ -621,6 +766,13 @@ def main(argv: list[str]) -> int:
         print(json.dumps(cmd_open_items(v, parse_date(a.date)), indent=2))
     elif a.cmd == "stats":
         print(json.dumps(cmd_stats(v, parse_date(a.start), parse_date(a.end)), indent=2))
+    elif a.cmd == "week-review":
+        print(json.dumps(cmd_week_review(v, parse_date(a.start), parse_date(a.end)), indent=2, ensure_ascii=False))
+    elif a.cmd == "my-review":
+        with open(resolve(a.file), encoding="utf-8") as f:
+            print(json.dumps(my_review(f.read()), indent=2, ensure_ascii=False))
+    elif a.cmd == "tick":
+        print(tick(resolve(a.file), a.text, a.evidence, parse_date(a.date) if a.date else dt.date.today()))
     elif a.cmd == "paths":
         print(json.dumps(note_paths(parse_date(a.date))))
     elif a.cmd == "focus-candidates":
