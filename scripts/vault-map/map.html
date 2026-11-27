@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault Map</title>
+<style>
+/* One page: the map and its side panel, the idea-to-done road, then an explorer of every note behind the map. */
+:root{
+  --bg:#f3f4ef; --panel:#ffffff; --fg:#1d2420; --muted:#5f6a63; --line:#d7dcd4; --accent:#2f6f5e; --warn:#b5542f; --sea:#dde6e4;
+  --t1:#4f7fa8; --t2:#8a6fb5; --t3:#b07a3c; --t4:#5f8f53; --t5:#c2604f; --t6:#3f9a93; --t7:#a8873a; --t8:#9a5a86; --t9:#c27ba0; --t10:#7d9a3f; --frontier:#b9beb4;
+  --display:ui-rounded,"SF Pro Rounded",system-ui,sans-serif; --body:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141a17; --panel:#1c2420; --fg:#e6ebe6; --muted:#9aa69e; --line:#2f3a34; --accent:#6cc0a6; --warn:#e48a63; --sea:#1a2624;
+  --t1:#6f9fcb; --t2:#a68fd0; --t3:#cf9a5c; --t4:#7fb072; --t5:#de7f6d; --t6:#5ebbb3; --t7:#c9a85a; --t8:#bd7aa8; --t9:#d99abf; --t10:#9dba5f; --frontier:#4a524c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a17; --panel:#1c2420; --fg:#e6ebe6; --muted:#9aa69e; --line:#2f3a34; --accent:#6cc0a6; --warn:#e48a63; --sea:#1a2624;
+  --t1:#6f9fcb; --t2:#a68fd0; --t3:#cf9a5c; --t4:#7fb072; --t5:#de7f6d; --t6:#5ebbb3; --t7:#c9a85a; --t8:#bd7aa8; --t9:#d99abf; --t10:#9dba5f; --frontier:#4a524c; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-left,0px)) 60px;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-size:1.8rem}
+h2{font-size:1.15rem}
+.lede{color:var(--muted);margin:4px 0 0;max-width:64ch}
+.eyebrow{font:500 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.game{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+@media (max-width:780px){.game{grid-template-columns:minmax(0,1fr)}}
+.mapbox{min-width:0}
+svg#map{width:100%;height:auto;display:block;background:var(--sea);border-radius:8px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{font:500 .8rem var(--body);background:transparent;color:var(--fg);border:0;padding:6px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--bg)}
+button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.turn{display:flex;align-items:center;gap:8px;flex:1;min-width:220px}
+.turn input{flex:1;accent-color:var(--accent)}
+.turn output{font:500 .85rem var(--mono);min-width:5.5em}
+.side{display:flex;flex-direction:column;gap:10px;min-width:0}
+.card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg);min-width:0}
+.card h3{font-size:.95rem;margin-bottom:4px}
+.stat{display:flex;justify-content:space-between;font-size:.85rem;gap:8px}
+.stat b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.small{font-size:.8rem;color:var(--muted)}
+.note{font-size:.8rem;color:var(--warn)}
+.btn{font:600 .8rem var(--body);border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:6px;padding:6px 10px;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--bg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.75rem;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:11px;height:11px;border-radius:2px;display:inline-block}
+.hex{stroke:var(--panel);stroke-width:1.1;cursor:pointer}
+.hex.sel{stroke:var(--fg);stroke-width:2}
+.city{font:600 8.5px var(--body);fill:var(--fg);paint-order:stroke;stroke:var(--panel);stroke-width:3px;pointer-events:none}
+.unlock{cursor:pointer}
+.unlock circle{fill:var(--panel);stroke:var(--warn);stroke-width:2}
+.unlock text{font:700 11px var(--display);fill:var(--warn);pointer-events:none}
+.unlock.claimed{opacity:.35}
+.route{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:4 4;opacity:.8;pointer-events:none}
+@media (prefers-reduced-motion:no-preference){.unlock circle{animation:pulse 2.2s ease-in-out infinite}}
+@keyframes pulse{50%{stroke-width:4}}
+.pipe{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:10px}
+@media (max-width:600px){.pipe{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.stage{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel);text-align:center}
+.stage b{display:block;font:500 1.5rem var(--mono);font-variant-numeric:tabular-nums}
+.stage span{font-size:.75rem;color:var(--muted)}
+.stage.broken{border-color:var(--warn)}
+.stage.broken b{color:var(--warn)}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+details>summary{cursor:pointer;font:600 1rem var(--display);list-style:none;display:flex;justify-content:space-between;gap:10px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:"+";color:var(--accent);font-family:var(--mono)}
+details[open]>summary::after{content:"–"}
+details>div{margin-top:10px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.82rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.tag{font:500 .7rem var(--mono);padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.s-tied,.tag.s-bet{color:var(--accent);border-color:var(--accent)}
+.tag.s-built,.tag.s-finished{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.tag.s-dropped{color:var(--warn);border-color:var(--warn)}
+ul.links{margin:4px 0 0;padding-left:1.1em;font-size:.82rem;display:flex;flex-direction:column;gap:2px}
+a{color:var(--accent)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const DATA = /*VAULT_MAP_DATA*/null;
+(function(){
+const app = document.getElementById('app');
+if (!DATA) { app.innerHTML = '<p class="empty">No map data. Build this page with <code>python3 scripts/vault-map/build.py --vault VAULT --html OUT</code>.</p>'; return; }
+const D = DATA, NS = 'http://www.w3.org/2000/svg';
+const PER = 4, FPER = 8; // concepts per territory tile, per frontier tile
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const href = p => 'obsidian://open?vault=' + encodeURIComponent(D.vault_name) + '&file=' + encodeURIComponent(p.replace(/\.md$/, ''));
+const link = (name, path) => '<a href="' + href(path) + '">' + esc(name) + '</a>';
+const mon = m => new Date(+m.slice(0,4), +m.slice(5,7)-1, 1).toLocaleDateString(undefined, {month:'short', year:'numeric'});
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+const STAGE = {idea:'idea', tied:'tied to a problem', bet:'became a bet', built:'built', finished:'finished', dropped:'dropped'};
+const T = D.territories, last = D.turns.length - 1;
+const byId = Object.fromEntries(T.map(t => [t.id, t]));
+const pathName = {}; [...D.ideas, ...D.bets, ...D.problems].forEach(r => pathName[r.path] = r.name);
+
+app.innerHTML = `
+<header>
+  <div class="eyebrow">Vault map · built ${esc(D.generated)}</div>
+  <h1>Your vault as a strategy map</h1>
+  <p class="lede">Territories are communities of linked concepts. Turns are months. Ideas travel from problem to bet to built to finished. A pulsing ? on a dashed route marks two territories that many links tie together and no idea joins yet.</p>
+</header>
+<section class="game" aria-label="Map">
+  <div class="mapbox">
+    <svg id="map" viewBox="0 0 600 460" role="img" aria-label="Hex map of vault territories"></svg>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Lens">
+        <button data-lens="terrain" aria-pressed="true">Maturity</button>
+        <button data-lens="new" aria-pressed="false">New this turn</button>
+        <button data-lens="roads" aria-pressed="false">Ideas and bets</button>
+      </div>
+      <label class="turn">Turn <input id="turn" type="range" min="0" max="${last}" value="${last}"><output id="turnout"></output></label>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <aside class="side">
+    <div class="card" id="turnreport"></div>
+    <div class="card" id="panel"><h3>Tap a territory or a ?</h3><p class="small">A territory shows its size, maturity, ideas and bets. Each ? is an unexplored route.</p></div>
+  </aside>
+</section>
+<section>
+  <h2>From idea to done</h2>
+  <div class="pipe" id="pipe"></div>
+  <p class="small" id="pipenote" style="margin-top:6px"></p>
+</section>
+<details><summary>Territories</summary><div class="tw" id="x-terr"></div></details>
+<details><summary>Ideas</summary><div class="tw" id="x-ideas"></div></details>
+<details><summary>Bets</summary><div class="tw" id="x-bets"></div></details>
+<details><summary>Fog: problems with no idea</summary><div id="x-fog"></div></details>
+<p class="small">Built from note links and frontmatter only. Names open the note in Obsidian.</p>`;
+
+// ---- hex grid sized to the vault ----
+T.forEach((t, i) => { t.c = 'var(--t' + (i % 10 + 1) + ')'; t.quota = Math.max(2, Math.ceil(t.size / PER)); t.tiles = []; });
+const fq = Math.ceil(D.frontier.length / FPER);
+// Seats: room for the biggest territory in the middle, a ring around it wide enough for the rest.
+const rad = t => Math.sqrt(t.quota / 3);
+const maxr = Math.max(1, ...T.slice(1).map(rad));
+const ringR = Math.max((T.length ? rad(T[0]) : 0) + maxr + 1, T.slice(1).reduce((s, t) => s + 2*rad(t) + 1.2, 0) / (2*Math.PI));
+let R = Math.ceil(ringR + maxr + 2);
+while (3*R*(R+1)+1 < (T.reduce((s, t) => s + t.quota, 0) + fq) * 1.4) R++;
+const S = Math.min(580 / (Math.sqrt(3) * (2*R + 1)), 440 / (3*R + 2));
+const OX = 300, OY = 230, svg = document.getElementById('map');
+const px = (q, r) => [OX + S*Math.sqrt(3)*(q + r/2), OY + S*1.5*r];
+const hexes = [];
+for (let q = -R; q <= R; q++) for (let r = Math.max(-R, -q-R); r <= Math.min(R, -q+R); r++) { const [x, y] = px(q, r); hexes.push({q, r, x, y, t:null}); }
+const H = new Map(hexes.map(h => [h.q + ',' + h.r, h]));
+const dist = (a, b) => (Math.abs(a.q-b.q) + Math.abs(a.r-b.r) + Math.abs(a.q+a.r-b.q-b.r)) / 2;
+const nb = h => [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]].map(([a, b]) => H.get((h.q+a) + ',' + (h.r+b))).filter(Boolean);
+
+// Seats: the biggest territory in the middle, the rest on a ring, each next to the one it shares most links with.
+const links = {}; D.borders.forEach(b => { links[b.a + '|' + b.b] = links[b.b + '|' + b.a] = b.links; });
+const order = T.length ? [T[0]] : [], left = T.slice(1);
+while (left.length) {
+  const prev = order[order.length - 1];
+  left.sort((a, b) => (links[prev.id + '|' + b.id] || 0) - (links[prev.id + '|' + a.id] || 0) || b.size - a.size);
+  order.push(left.shift());
+}
+const ring = order.length - 1;
+order.forEach((t, i) => {
+  if (!i) { t.seat = {q:0, r:0}; return; }
+  const a = 2*Math.PI*(i-1)/ring - Math.PI/2, x = ringR*Math.cos(a)*Math.sqrt(3), y = ringR*Math.sin(a)*1.5;
+  const r = Math.round(y / 1.5), q = Math.round(x / Math.sqrt(3) - r/2);
+  t.seat = {q, r};
+});
+// Grow each territory outward from its seat, one tile at a time, the one furthest behind its quota first.
+// Tiles stay touching, so every territory is one piece.
+const claim = (t, h) => { h.t = t; t.tiles.push(h); };
+T.forEach(t => { const h = H.get(t.seat.q + ',' + t.seat.r); if (h && !h.t) claim(t, h); });
+for (;;) {
+  let pick = null, best = 1;
+  T.forEach(t => { if (!t.tiles.length || t.tiles.length >= t.quota || t.stuck) return; const f = t.tiles.length / t.quota; if (f < best) { best = f; pick = t; } });
+  if (!pick) break;
+  let next = null, nd = 1e9;
+  pick.tiles.forEach(h => nb(h).forEach(n => { if (n.t) return; const d = dist(n, pick.seat) + Math.hypot(n.x - OX, n.y - OY) / (S * 50); if (d < nd) { nd = d; next = n; } }));
+  if (next) claim(pick, next); else pick.stuck = true;
+}
+T.forEach(t => { const per = Math.ceil(t.size / Math.max(1, t.tiles.length)); t.tiles.forEach((h, i) => {
+  const cs = t.concepts.slice(i*per, (i+1)*per);
+  h.cs = cs.length ? cs : t.concepts.slice(-1);
+  h.turn = Math.min(...h.cs.map(c => c.turn));
+  h.terrain = h.cs[0].terrain;
+}); });
+T.forEach(t => { t.first = Math.min(...t.tiles.map(h => h.turn)); });
+// Frontier: small islands on the map's outer rim, spread evenly around it.
+const rim = hexes.filter(h => !h.t && dist(h, {q:0, r:0}) >= R - 1 && !nb(h).some(n => n.t)).sort((a, b) => Math.atan2(a.y-OY, a.x-OX) - Math.atan2(b.y-OY, b.x-OX));
+const front = [];
+for (let i = 0; i < Math.min(fq, rim.length); i++) front.push(rim[Math.floor(i * rim.length / Math.min(fq, rim.length))]);
+front.forEach((h, i) => { h.front = true; h.cs = D.frontier.slice(i*FPER, (i+1)*FPER); h.turn = h.cs.length ? Math.min(...h.cs.map(c => c.turn)) : 0; });
+
+const poly = (x, y) => { let p = ''; for (let i = 0; i < 6; i++) { const a = Math.PI/180*(60*i-30); p += (x+(S-.5)*Math.cos(a)).toFixed(1) + ',' + (y+(S-.5)*Math.sin(a)).toFixed(1) + ' '; } return p; };
+const gH = document.createElementNS(NS, 'g'), gR = document.createElementNS(NS, 'g'), gC = document.createElementNS(NS, 'g'), gU = document.createElementNS(NS, 'g');
+svg.append(gH, gR, gC, gU);
+let sel = null;
+hexes.filter(h => h.t || h.front).forEach(h => {
+  const p = document.createElementNS(NS, 'polygon');
+  p.setAttribute('points', poly(h.x, h.y)); p.setAttribute('class', 'hex'); h.el = p; gH.append(p);
+  p.addEventListener('click', () => { if (sel) sel.el.classList.remove('sel'); sel = h; p.classList.add('sel'); h.t ? showT(h.t, h) : showFront(h); });
+});
+const fs = Math.max(7, Math.min(10, S*0.75));
+const short = s => s.length > 24 ? s.slice(0, 22) + '…' : s;
+T.forEach(t => {
+  const cx = t.tiles.reduce((a, h) => a + h.x, 0) / t.tiles.length, cy = t.tiles.reduce((a, h) => a + h.y, 0) / t.tiles.length;
+  const c = t.tiles.reduce((b, h) => Math.hypot(h.x - cx, h.y - cy) < Math.hypot(b.x - cx, b.y - cy) ? h : b, t.tiles[0]);
+  const tx = document.createElementNS(NS, 'text'); tx.setAttribute('x', c.x); tx.setAttribute('y', c.y + 3); tx.setAttribute('text-anchor', 'middle'); tx.setAttribute('class', 'city'); tx.style.fontSize = fs + 'px'; t.label = tx; gC.append(tx); });
+D.unlocks.forEach(u => {
+  // A dashed sea route between the closest coasts of the two territories, with the ? at its middle.
+  const A = byId[u.a], B = byId[u.b]; let pair = [A.tiles[0], B.tiles[0]], bd = 1e9;
+  A.tiles.forEach(h => B.tiles.forEach(n => { const d = Math.hypot(h.x-n.x, h.y-n.y); if (d < bd) { bd = d; pair = [h, n]; } }));
+  const best = [(pair[0].x + pair[1].x)/2, (pair[0].y + pair[1].y)/2];
+  const route = document.createElementNS(NS, 'line');
+  route.setAttribute('x1', pair[0].x); route.setAttribute('y1', pair[0].y); route.setAttribute('x2', pair[1].x); route.setAttribute('y2', pair[1].y);
+  route.setAttribute('class', 'route'); gR.append(route); u.route = route;
+  const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'unlock'); g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
+  g.setAttribute('aria-label', 'Unexplored route between ' + A.name + ' and ' + B.name);
+  g.innerHTML = '<circle cx="' + best[0] + '" cy="' + best[1] + '" r="' + Math.max(6, S*0.7) + '"></circle><text x="' + best[0] + '" y="' + (best[1]+4) + '" text-anchor="middle">?</text>';
+  const open = () => showU(u); g.addEventListener('click', open);
+  g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  u.g = g; u.firstTurn = Math.max(A.first, B.first); gU.append(g);
+});
+
+// ---- drawing ----
+let lens = 'terrain', turn = last;
+const shade = (base, f) => 'color-mix(in srgb, ' + base + ' ' + Math.round(f*100) + '%, var(--panel))';
+const TF = {core:1, developing:.66, seed:.36};
+const furthest = t => ['finished','built','bet','tied','idea'].find(s => t.stages[s]) || '';
+function draw() {
+  T.forEach(t => {
+    const st = furthest(t), rf = {finished:1, built:.85, bet:.7, tied:.5, idea:.32}[st] || .14;
+    t.tiles.forEach(h => {
+      const on = h.turn <= turn; h.el.style.display = on ? '' : 'none';
+      let fill;
+      if (lens === 'terrain') fill = shade(t.c, TF[h.terrain] || .36);
+      else if (lens === 'new') fill = h.cs.some(c => c.turn === turn) ? t.c : shade(t.c, .22);
+      else fill = shade(t.c, rf);
+      h.el.style.fill = fill;
+    });
+    const shown = t.first <= turn;
+    t.label.textContent = !shown ? '' : lens === 'roads' ? short(t.name) + ' · ' + plural(t.ideas.length, 'idea') + ', ' + plural(t.bets.length, 'bet') : short(t.name);
+  });
+  front.forEach(h => { h.el.style.display = h.turn <= turn ? '' : 'none'; h.el.style.fill = 'var(--frontier)'; });
+  D.unlocks.forEach(u => { u.g.style.display = u.route.style.display = u.firstTurn <= turn ? '' : 'none'; });
+  document.getElementById('turnout').textContent = mon(D.turns[turn]);
+  const pt = D.per_turn, onMap = T.reduce((s, t) => s + t.growth[turn], 0);
+  document.getElementById('turnreport').innerHTML = '<h3>Turn report · ' + mon(D.turns[turn]) + '</h3>' +
+    '<div class="stat">Concepts in territories<b>' + onMap + '</b></div>' +
+    '<div class="stat">New concepts this turn<b>' + pt.concepts[turn] + '</b></div>' +
+    '<div class="stat">Ideas formed this turn<b>' + pt.ideas[turn] + '</b></div>' +
+    '<div class="stat">Bets started this turn<b>' + pt.bets_started[turn] + '</b></div>' +
+    '<div class="stat">Bets shipped this turn<b>' + pt.bets_shipped[turn] + '</b></div>' +
+    (D.spikes.includes(turn) ? '<p class="note">A spike: most of these concepts arrived at once, likely one import.</p>' : '');
+  legend();
+}
+function legend() {
+  const L = document.getElementById('legend'), c = 'var(--t1)';
+  if (lens === 'terrain') L.innerHTML = '<span><i class="sw" style="background:' + c + '"></i>evergreen core</span><span><i class="sw" style="background:' + shade(c, .66) + '"></i>developing</span><span><i class="sw" style="background:' + shade(c, .36) + '"></i>seed</span><span><i class="sw" style="background:var(--frontier)"></i>frontier</span><span style="color:var(--warn)">? unexplored route</span>';
+  else if (lens === 'new') L.innerHTML = '<span><i class="sw" style="background:' + c + '"></i>has a concept from this turn</span><span><i class="sw" style="background:' + shade(c, .22) + '"></i>held before</span>';
+  else L.innerHTML = '<span>Darker means its ideas got further: idea, tied to a problem, bet, built, finished</span>';
+}
+const stageTag = s => '<span class="tag s-' + s + '">' + esc(STAGE[s] || s) + '</span>';
+function showT(t, h) {
+  const tr = t.terrain, ideas = D.ideas.filter(i => i.territory === t.id);
+  document.getElementById('panel').innerHTML = '<h3>' + esc(t.name) + '</h3>' +
+    (t.name !== t.hub ? '<p class="small">Capital: ' + esc(t.hub) + '</p>' : '') +
+    '<div class="stat">Concepts<b>' + t.size + '</b></div>' +
+    '<div class="stat">Core / developing / seed<b>' + (tr.core||0) + ' / ' + (tr.developing||0) + ' / ' + (tr.seed||0) + '</b></div>' +
+    '<div class="stat">Ideas<b>' + t.ideas.length + '</b></div><div class="stat">Bets<b>' + t.bets.length + '</b></div><div class="stat">Problems<b>' + t.problems.length + '</b></div>' +
+    (ideas.length ? '<ul class="links">' + ideas.slice(0, 8).map(i => '<li>' + link(i.name, i.path) + ' ' + stageTag(i.stage) + '</li>').join('') + '</ul>' : '<p class="note">No idea links here yet.</p>') +
+    '<p class="small" style="margin-top:8px">This tile</p><ul class="links">' + h.cs.map(c => '<li>' + link(c.name, c.path) + '</li>').join('') + '</ul>';
+}
+function showFront(h) {
+  document.getElementById('panel').innerHTML = '<h3>Frontier</h3><p class="small">' + D.frontier.length + ' concepts that link to no territory yet. They become land when links tie them in.</p>' +
+    '<ul class="links">' + h.cs.map(c => '<li>' + link(c.name, c.path) + '</li>').join('') + '</ul>' +
+    '<p class="small" style="margin-top:8px">Fog: ' + D.fog.length + ' problems with no idea. The list is below the map.</p>';
+}
+function showU(u) {
+  const A = byId[u.a], B = byId[u.b], prompt = 'Draft a seed idea note that joins [[' + A.hub + ']] and [[' + B.hub + ']], starting from [[' + u.ground[0] + ']].';
+  document.getElementById('panel').innerHTML = '<h3>Unexplored route</h3><p class="small">' + esc(A.name) + ' and ' + esc(B.name) + '</p>' +
+    '<div class="stat">Concept links across it<b>' + u.links + '</b></div><div class="stat">Ideas joining them<b>0</b></div>' +
+    '<p class="small">Shared ground: ' + u.ground.map(esc).join(', ') + '</p><p>' + esc(u.hint) + '</p>' +
+    '<button class="btn primary" id="claim">Claim this territory</button><p class="small" id="claimres"></p>';
+  document.getElementById('claim').addEventListener('click', () => {
+    const done = ok => { document.getElementById('claimres').textContent = ok ? 'Copied a prompt. Paste it to Claude to draft the seed idea. Nothing is written until you say so.' : 'Ask Claude: ' + prompt; u.g.classList.add('claimed'); };
+    (navigator.clipboard ? navigator.clipboard.writeText(prompt).then(() => done(true), () => done(false)) : done(false));
+  });
+}
+document.querySelectorAll('[data-lens]').forEach(b => b.addEventListener('click', () => {
+  lens = b.dataset.lens; document.querySelectorAll('[data-lens]').forEach(x => x.setAttribute('aria-pressed', x === b)); draw();
+}));
+document.getElementById('turn').addEventListener('input', e => { turn = +e.target.value; draw(); });
+
+// ---- the road and the explorer ----
+const P = D.pipeline;
+const stages = [[P.ideas, 'idea notes'], [P.tied, 'tied to a problem'], [P.reached_bet, 'reached a bet'], [P.bets, 'bet notes'], [P.built, 'built'], [P.finished, 'finished, KPI read']];
+document.getElementById('pipe').innerHTML = stages.map(([n, l], i) => '<div class="stage' + (i && !n ? ' broken' : '') + '"><b>' + n + '</b><span>' + esc(l) + '</span></div>').join('');
+document.getElementById('pipenote').textContent = P.bets_from_ideas + ' of ' + P.bets + ' bets link to an idea. ' + D.fog.length + ' problems have no idea.';
+const table = (heads, rows) => rows.length ? '<table><thead><tr>' + heads.map(h => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' + rows.map(r => '<tr>' + r.join('') + '</tr>').join('') + '</tbody></table>' : '<p class="small">None yet.</p>';
+const tname = id => byId[id] ? esc(byId[id].name) : '<span class="small">frontier</span>';
+document.getElementById('x-terr').innerHTML = table(['Territory', 'Concepts', 'Ideas', 'Bets', 'New this turn'], T.map(t =>
+  ['<td>' + esc(t.name) + '</td>', '<td class="n">' + t.size + '</td>', '<td class="n">' + t.ideas.length + '</td>', '<td class="n">' + t.bets.length + '</td>', '<td class="n">' + (t.growth[last] - (last ? t.growth[last-1] : 0)) + '</td>']));
+const rank = {finished:0, built:1, bet:2, tied:3, idea:4};
+document.getElementById('x-ideas').innerHTML = table(['Idea', 'Stage', 'Territory', 'Formed'], [...D.ideas].sort((a, b) => rank[a.stage] - rank[b.stage] || (b.created || '').localeCompare(a.created || '')).map(i =>
+  ['<td>' + link(i.name, i.path) + '</td>', '<td>' + stageTag(i.stage) + '</td>', '<td>' + tname(i.territory) + '</td>', '<td>' + (i.created ? esc(mon(i.created)) : '') + '</td>']));
+document.getElementById('x-bets').innerHTML = table(['Bet', 'Stage', 'From ideas', 'Started'], [...D.bets].sort((a, b) => (b.started || '').localeCompare(a.started || '')).map(b =>
+  ['<td>' + link(b.name, b.path) + '</td>', '<td>' + stageTag(b.stage) + '</td>', '<td>' + (b.ideas.map(p => esc(pathName[p] || p)).join(', ') || '<span class="small">none</span>') + '</td>', '<td>' + (b.started ? esc(mon(b.started)) : '') + '</td>']));
+const fog = D.problems.filter(p => p.fog);
+document.getElementById('x-fog').innerHTML = fog.length ? '<ul class="links">' + fog.map(p => '<li>' + link(p.name, p.path) + '</li>').join('') + '</ul>' : '<p class="small">Every problem has an idea.</p>';
+draw();
+})();
+</script>
+</body>
+</html>
