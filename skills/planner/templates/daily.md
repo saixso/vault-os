@@ -39,7 +39,7 @@ path includes reviews/daily
 happens after <% tp.date.now("YYYY-MM-DD", -15, tp.file.title) %>
 happens before <% tp.date.now("YYYY-MM-DD", 4, tp.file.title) %>
 tags do not include #outcome
-filter by function !(task.heading === 'Focus' && task.file.filenameWithoutExtension === '<% tp.date.now("YYYY-MM-DD", 0, tp.file.title) %>')
+filter by function task.heading !== 'Focus'
 group by function task.happens.category.groupText
 sort by happens
 short mode

@@ -283,7 +283,7 @@ class TodosAndTime(VaultCase):
             self.assertIn("```tasks", text)
         self.assertIn("task.due.fromNow.groupText", weekly)
         self.assertIn("happens after 2026-11-09\nhappens before 2026-11-28", daily)
-        self.assertIn("task.file.filenameWithoutExtension === '2026-11-24'", daily)
+        self.assertIn("filter by function task.heading !== 'Focus'", daily)
         self.assertIn("done in 2026-11-22 2026-11-28", weekly)
         self.assertIn("due in 2026-11-22 2026-11-28", weekly)
         self.assertIn("<!-- planner:todo -->", daily)
