@@ -7,6 +7,9 @@ owner: {{owner}}
 area: {{area}}
 cycle: {{cycle}}
 status: {{status}}
+odds: {{odds}}
+wrong_if: {{wrong_if}}
+decision: {{decision}}
 rating: {{rating}}
 why: {{why}}
 value: {{value}}
@@ -14,13 +17,20 @@ source: {{source}}
 ---
 # {{bet}}
 
-<!-- You set status and rating. status is in progress, paused, or done.
-rating is won, lost, or push, and it stays blank until you rate the bet.
-bets.py does not decide either one. -->
+<!-- You set every field here. bets.py does not decide any of them.
+When you place the bet: odds is how likely you think it is to work, 0 to 100,
+and wrong_if is what would prove it wrong.
+status is in progress, paused, or done.
+At the close, rate two things apart: decision is good or bad, judged on what
+you knew when you placed the bet; rating is the result, won, lost, or push. -->
 
 ## Why
 
 {{why}}
+
+## Proved wrong if
+
+{{wrong_if}}
 
 ## Value
 

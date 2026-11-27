@@ -1,8 +1,13 @@
 # Bets
 
-One note per bet. The user sets the status and the rating. `scripts/bets.py`
-creates the note and rewrites a Bet Radar grouped by status. It does not
-decide that a bet is done, and it does not rate one.
+One note per bet. The user sets the status, the odds they give the bet, what
+would prove it wrong, and at the close two ratings kept apart: the decision
+(good or bad) and the result (won, lost, or push). `scripts/bets.py` creates
+the note and rewrites a Bet Radar grouped by status. It does not decide that a
+bet is done, and it does not rate a decision or a result.
+
+The odds and the two ratings follow Thinking in Bets: judge a decision on what
+was known when it was made, not on how it turned out.
 
 | Part | Path |
 |---|---|
@@ -18,7 +23,7 @@ decide that a bet is done, and it does not rate one.
 ```
 export VAULT_OS_VAULT_ROOT=/path/to/your/vault
 python3 scripts/bets.py new < my-bets.json
-python3 scripts/bets.py set "Self-serve onboarding" status=done rating=won
+python3 scripts/bets.py set "Self-serve onboarding" status=done rating=lost decision=good
 python3 scripts/bets.py score
 ```
 
@@ -32,24 +37,36 @@ A minimal `my-bets.json`:
     "area": "work",
     "why": "New accounts wait days for a setup call.",
     "value": "Days to first use, from 6.",
+    "odds": 60,
+    "wrong_if": "Days to first use is still above 4 after a full cycle.",
     "status": "in progress"
   }
 ]
 ```
 
 Status is `in progress`, `paused`, or `done`. If `status` is left out, a new
-note starts at `in progress`. Rating is `won`, `lost`, or `push`, and it stays
-blank until someone sets it. An existing note is never overwritten by `new`.
+note starts at `in progress`. Odds is a whole percent from 0 to 100 (`60%` and
+`0.6` become `60`). Decision is `good` or `bad`, and rating is `won`, `lost`,
+or `push`; both stay blank until someone sets them. An existing note is never
+overwritten by `new`.
 
-`score` rewrites `bets/Bet Radar.md` and does not change the status or rating
-on the notes. `--area life` limits the radar to personal bets. `--out NOTE`
+`score` rewrites `bets/Bet Radar.md` and does not change any field on the notes. `--area life` limits the radar to personal bets. `--out NOTE`
 writes it somewhere else.
 
 ## The radar note
 
 Four groups: In progress, Paused, Done, Not set. Each row is the bet, the
-owner, the rating, and the value. Follow-ups ask for a missing owner, a
-missing status, or a rating on a bet the user has marked done.
+owner, the odds, the decision, the rating, and the value.
+
+- **Decision against result:** done bets in a grid of decision (good, bad) by
+  result (won, push, lost). A good call that lost is bad luck; a bad call that
+  won is luck, not a lesson to repeat.
+- **Odds against results:** the average odds of done bets with a won or lost
+  result, against how many won. Odds well above the win rate means the bets
+  were called with too much confidence.
+- **Follow-ups:** a missing owner or status; odds or "proved wrong if" on a bet
+  in progress; a decision or result rating on a bet marked done.
+- **Live view:** two Dataview blocks with the same fields.
 
 ## Test
 

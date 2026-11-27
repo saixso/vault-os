@@ -123,8 +123,67 @@ class FollowUps(unittest.TestCase):
         self.assertEqual([(f["owner"], f["kind"], f["bet"]) for f in fus], [
             ("(no owner)", "owner", "C"),
             ("(no owner)", "status", "C"),
+            ("Sam", "odds", "A"),
             ("Sam", "rating", "D"),
+            ("Sam", "decision", "E"),
         ])
+
+    def test_odds_asked_only_while_in_progress(self):
+        fus = self.fus(
+            bet(bet="A", note="A", status="in progress", odds="", wrong_if="Churn stays flat"),
+            bet(bet="B", note="B", status="in progress", odds="60", wrong_if=""),
+            bet(bet="C", note="C", status="in progress", odds="60", wrong_if="Churn stays flat"),
+            bet(bet="D", note="D", status="paused", odds=""),
+            bet(bet="E", note="E", status="done", rating="won", decision="good", odds=""),
+        )
+        self.assertEqual([(f["kind"], f["bet"]) for f in fus], [("odds", "A"), ("odds", "B")])
+
+    def test_one_ask_for_both_ratings_when_neither_is_set(self):
+        fus = self.fus(bet(bet="D", note="D", status="done", rating="", decision=""))
+        self.assertEqual([f["kind"] for f in fus], ["rating"])
+        self.assertIn("decision", fus[0]["ask"])
+        fus = self.fus(bet(bet="D", note="D", status="done", rating="", decision="good"))
+        self.assertNotIn("decision", fus[0]["ask"])
+
+
+class Odds(unittest.TestCase):
+    def test_forms(self):
+        for given, want in (("60", 60), ("60%", 60), ("0.6", 60), ("0.65", 65), ("100", 100), ("0", 0),
+                            ("1", 1), ("1.0", 100), ("12.5%", 12)):
+            self.assertEqual(bets.parse_odds(given), want, given)
+        for bad in ("", "high", "120", "-5", "60-70"):
+            self.assertIsNone(bets.parse_odds(bad), bad)
+
+    def test_decision_and_odds_pass_through_scoring(self):
+        s = scored(bet(status="done", rating="lost", decision="Good", odds="70%"))
+        self.assertEqual((s["decision"], s["odds"]), ("good", 70))
+        self.assertEqual(scored(bet(decision="fine"))["decision"], "")
+
+
+class Calibration(unittest.TestCase):
+    def done(self, odds, rating, decision="good"):
+        return scored(bet(status="done", rating=rating, decision=decision, odds=odds))
+
+    def test_average_odds_against_win_rate(self):
+        cal = bets.calibration([self.done("80", "won"), self.done("80", "lost"), self.done("70", "lost"),
+                                self.done("90", "push"), self.done("", "won")])
+        self.assertEqual(cal, {"bets": 3, "average_odds": 77, "won": 1, "win_rate": 33})
+        text = "\n".join(bets.calibration_text(cal))
+        self.assertIn("The odds ran 44 points above the results.", text)
+        self.assertIn("says little yet", text)
+
+    def test_none_without_odds_and_a_result(self):
+        self.assertIsNone(bets.calibration([self.done("", "won"), self.done("60", "push")]))
+
+    def test_grid_places_a_good_call_that_lost_as_bad_luck(self):
+        rows = [scored(bet(bet="Win", note="Win", status="done", rating="won", decision="good")),
+                scored(bet(bet="Unlucky", note="Unlucky", status="done", rating="lost", decision="good")),
+                scored(bet(bet="Lucky", note="Lucky", status="done", rating="won", decision="bad")),
+                scored(bet(bet="Half", note="Half", status="done", rating="won", decision=""))]
+        text = "\n".join(bets.grid_text(rows))
+        self.assertIn("| Good | Earned it: 1<br>[[Win]] | Good call, even: 0 | Bad luck: 1<br>[[Unlucky]] |", text)
+        self.assertIn("| Bad | Got lucky: 1<br>[[Lucky]] | Bad call, even: 0 | Learn from it: 0 |", text)
+        self.assertIn("1 done bet is missing a decision or a result rating.", text)
 
 
 class VaultCase(unittest.TestCase):
@@ -182,6 +241,17 @@ class NewNotes(VaultCase):
         self.assertEqual(b["why"], "Too many abandoned carts.")
         self.assertEqual(bets.parse_bet(os.path.join(self.v, "bets/Run a half marathon.md"))["area"], "life")
 
+    def test_new_bet_with_odds_and_wrong_if(self):
+        self.new({"bet": "Self-serve setup", "owner": "Sam", "why": "Setup calls take days.",
+                  "odds": "0.6", "wrong_if": "Setup time does not drop in 6 weeks"})
+        text = self.read("bets/Self-serve setup.md")
+        self.assertIn("odds: 60\n", text)
+        self.assertIn("wrong_if: Setup time does not drop in 6 weeks\n", text)
+        self.assertIn("## Proved wrong if\n\nSetup time does not drop in 6 weeks", text)
+        self.assertRegex(text, r"\ndecision: ?\n")
+        b = bets.parse_bet(os.path.join(self.v, "bets/Self-serve setup.md"))
+        self.assertEqual((b["odds"], b["wrong_if"], b["decision"]), ("60", "Setup time does not drop in 6 weeks", ""))
+
     def test_never_overwrites(self):
         self.new({"bet": "Alpha"})
         with open(os.path.join(self.v, "bets/Alpha.md"), "a") as f:
@@ -192,7 +262,8 @@ class NewNotes(VaultCase):
     def test_rejects_bad_input(self):
         for item in ({"owner": "Sam"}, {"bet": "X", "area": "hobby"}, {"bet": "X", "cycle_end": "next week"},
                      {"bet": "X", "outcome": "great"}, {"bet": "X", "status": "off-track"},
-                     {"bet": "X", "rating": "great"}):
+                     {"bet": "X", "rating": "great"}, {"bet": "X", "decision": "fine"},
+                     {"bet": "X", "odds": "likely"}, {"bet": "X", "odds": "150"}):
             r = self.cli("new", stdin=json.dumps(item), ok=False)
             self.assertNotEqual(r.returncode, 0, item)
         self.assertFalse(os.path.exists(os.path.join(self.v, "bets/X.md")))
@@ -248,8 +319,17 @@ class Appends(VaultCase):
         out = json.loads(self.cli("set", "Alpha", "shipped=2026-12-10", "outcome=partial").stdout)
         self.assertEqual(out, {"shipped": "2026-12-10", "outcome": "partial"})
         self.assertIn("shipped: 2026-12-10", self.read("bets/Alpha.md"))
-        for bad in ("status=on-track", "shipped=soon", "outcome=great", "area=hobby"):
+        for bad in ("status=on-track", "shipped=soon", "outcome=great", "area=hobby", "decision=fine",
+                    "odds=likely", "odds=101"):
             self.assertNotEqual(self.cli("set", "Alpha", bad, ok=False).returncode, 0, bad)
+
+    def test_set_odds_and_decision(self):
+        out = json.loads(self.cli("set", "Alpha", "odds=70%", "wrong_if=Tickets stay above 35",
+                                  "decision=Good").stdout)
+        self.assertEqual(out, {"odds": "70", "wrong_if": "Tickets stay above 35", "decision": "good"})
+        text = self.read("bets/Alpha.md")
+        self.assertIn("odds: 70\n", text)
+        self.assertIn("decision: good\n", text)
 
     def test_refuses_a_note_that_is_not_a_bet(self):
         with open(os.path.join(self.v, "bets", "Readme.md"), "w") as f:
@@ -287,9 +367,11 @@ class Score(VaultCase):
         self.assertIn("status: paused", self.read("bets/Alpha.md"))
         radar = self.read("bets/Bet Radar.md")
         self.assertIn("## Paused", radar)
-        self.assertIn("| [[Alpha]] | Sam | — |", radar)
-        self.assertIn("| [[Beta]] | Alex | lost |", radar)
-        self.assertNotIn("Rate this bet", radar)
+        self.assertIn("| [[Alpha]] | Sam | — | — | — | — |", radar)
+        self.assertIn("| [[Beta]] | Alex | — | — | lost | — |", radar)
+        self.assertIn("Rate the decision as it was made", radar)
+        self.assertIn("## Decision against result", radar)
+        self.assertIn("## Odds against results", radar)
         self.assertIn("```dataview", radar)
         self.assertEqual(len(json.loads(self.cli("list", "--today", "2026-11-23").stdout)), 5)
 
@@ -327,10 +409,27 @@ class Score(VaultCase):
         self.assertIn("[[Alpha]]", radar.split("## Not set", 1)[1])
 
     def test_follow_ups_json(self):
+        for n in ("Alpha", "Beta", "Delta", "Long run"):
+            self.cli("set", n, "odds=50", "wrong_if=It does not move")
         self.cli("set", "Gamma", "status=done")
         fus = json.loads(self.cli("follow-ups", "--today", "2026-11-23").stdout)
         self.assertEqual([(f["owner"], f["kind"], f["bet"]) for f in fus],
                          [("Alex", "rating", "Gamma")])
+
+    def test_radar_shows_decision_against_result_and_odds(self):
+        self.cli("set", "Alpha", "status=done", "rating=lost", "decision=good", "odds=80")
+        self.cli("set", "Beta", "status=done", "rating=won", "decision=bad", "odds=40")
+        self.cli("set", "Gamma", "status=done", "rating=won", "decision=good", "odds=70")
+        out = json.loads(self.cli("score", "--today", "2026-11-23").stdout)
+        self.assertEqual(out["decision_vs_result"]["good, lost"], 1)
+        self.assertEqual(out["decision_vs_result"]["bad, won"], 1)
+        self.assertEqual(out["calibration"], {"bets": 3, "average_odds": 63, "won": 2, "win_rate": 67})
+        radar = self.read("bets/Bet Radar.md")
+        self.assertIn("| [[Alpha]] | Sam | 80% | good | lost | — |", radar)
+        self.assertIn("Bad luck: 1<br>[[Alpha]]", radar)
+        self.assertIn("Got lucky: 1<br>[[Beta]]", radar)
+        self.assertIn("The odds and the results are within 10 points.", radar)
+        self.assertIn('GROUP BY decision + ", " + rating', radar)
 
 
 class Frontmatter(unittest.TestCase):

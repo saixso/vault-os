@@ -4,6 +4,8 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-27
+
 ### Added
 
 - **planner: lean daily note.** The daily note drops from about 590 words to about 110. Prep is one header line; Focus lines are 10 words with no why text (reasons go in the run's report); meeting cards are 3 lines. Every task the planner writes gets a `⏳` scheduled day, and one Tasks query (Today: overdue in the last two weeks, today, the next 3 days) replaces the Due section and the Carried list. New user-owned sections the planner reads and never writes: **Add here** (tasks from the user and other agents, one line format) and **My review** (day rating, what they saw, notes for Claude). To-dos, promises, decisions and the scorecard move under one Record heading at the bottom, and the template loses its instruction comments (word budgets now live in the note contract). `planner.py`: reads `⏳` and `✅` dates, counts untagged Add here tasks as to-dos, `open-items` returns the last note's My review, new `my-review`, `week-review` (done in range by done date, ticked with no date, came due and still open, stale count, ratings) and `tick` (ticks a promise with evidence and the done date). The weekly template gains Done this week and Came due, still open queries.
@@ -11,7 +13,7 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
 
 ### Changed
 
-- **bets.** A bet note is now a claim, a why, a value, a status, and a rating. Status is `in progress`, `paused`, or `done`, and the user sets it. Rating is `won`, `lost`, or `push`, and it stays blank until the user rates the bet. `score` rewrites the radar from those fields and does not decide either one. A cycle end no longer marks a bet off track.
+- **bets.** A bet note is now a claim, a why, a value, a status, and a rating. Status is `in progress`, `paused`, or `done`, and the user sets it. Rating is `won`, `lost`, or `push`, and it stays blank until the user rates the bet. `score` rewrites the radar from those fields and does not decide either one. A cycle end no longer marks a bet off track. Following Thinking in Bets, the user also writes `odds` (a whole percent, 0 to 100) and `wrong_if` (what would prove the bet wrong) when the bet is placed, and at the close rates the `decision` (`good` or `bad`) apart from the result. The radar adds odds and decision columns, a Decision against result grid (good or bad by won, push or lost), and Odds against results (average odds against win rate, flagged as thin under 10 bets); `score` JSON adds `decision_vs_result` and `calibration`. Follow-ups ask for odds and `wrong_if` only on bets in progress, and for whichever rating a done bet lacks. The starter template gains a Proved wrong if section. The skill now interviews the user one question at a time: `/bets new` asks what the bet is, the owner, why, the expected value, the odds and what would prove it wrong; `/bets close` asks the result, then the decision apart from it. Answers go to the note's frontmatter as given, never prefilled. Tests: 38.
 
 ## [2.6.0] - 2026-11-23
 

@@ -52,7 +52,7 @@ ln -s "$(pwd)/skills" ~/.opencode/skills/vault-os
 | `publish` | Maintainer: version bump + push this plugin |
 | `feature-request` | Maintainer: file ideas as GitHub issues |
 | `planner` | Periodic notes: routes to `daily-planner`, `weekly-planner`, `monthly-planner`. Needs calendar, meeting-notes and mail connectors and the planner templates. See `docs/planner.md` |
-| `bets` | Bets with owner, why, value, a status you set (in progress, paused, done) and a rating you set (won, lost, push). `scripts/bets.py` rewrites `bets/Bet Radar.md`. See `docs/bets.md` |
+| `bets` | Bets with owner, why, value, a status you set (in progress, paused, done), odds and what would prove it wrong, and at the close a decision rating (good, bad) kept apart from the result (won, lost, push). `scripts/bets.py` rewrites `bets/Bet Radar.md`. See `docs/bets.md` |
 
 ### Dormant / advanced (opt-in only)
 

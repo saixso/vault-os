@@ -3,9 +3,12 @@
 
 A bet is one note in the vault's bets/ folder. The person who owns the bet
 sets its status (in progress, paused, or done) and, when they choose, a
-rating (won, lost, or push). This script creates notes from the template,
-records those two fields, and rewrites the radar. It does not decide whether
-a bet is done, and it does not rate one.
+rating (won, lost, or push). Following Thinking in Bets, they also write the
+odds they give the bet and what would prove it wrong when they place it, and
+at the close they rate the decision (good or bad) apart from the result.
+This script creates notes from the template, records those fields, and
+rewrites the radar. It does not decide whether a bet is done, and it does not
+rate a result or a decision.
 Standard library only.
 
 The vault is --vault, else $VAULT_OS_VAULT_ROOT, else the current directory.
@@ -20,7 +23,8 @@ Usage:
   bets.py tick FILE MATCH [--date D]  (tick the one open milestone or blocker containing MATCH)
   bets.py kpi FILE METRIC --target T [--baseline B] [--read-by D] [--direction up|down]
   bets.py reading FILE METRIC VALUE [--date D]
-  bets.py set FILE key=value ...      (owner, area, cycle, status, rating, why, value, and the
+  bets.py set FILE key=value ...      (owner, area, cycle, status, rating, why, value, odds,
+                                       wrong_if, decision, and the
                                        older cycle fields still on existing notes)
   bets.py list [--today D]            (JSON: every bet)
   bets.py follow-ups [--today D]      (JSON: asks for each owner)
@@ -53,6 +57,7 @@ BUNDLED_TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 # Frontmatter the user (or the agent, on the user's word) owns.
 USER_FIELDS = ["bet", "owner", "area", "cycle", "status", "rating", "why", "value",
+               "odds", "wrong_if", "decision",
                "appetite", "cycle_start", "cycle_end", "started", "shipped", "dropped",
                "outcome", "source"]
 DATE_FIELDS = {"cycle_start", "cycle_end", "started", "shipped", "dropped"}
@@ -61,6 +66,7 @@ SETTABLE = [f for f in USER_FIELDS if f not in ("bet", "source")]
 AREAS = ("work", "life")
 STATUSES = ("in progress", "paused", "done")
 RATINGS = ("won", "lost", "push")
+DECISIONS = ("good", "bad")
 OUTCOMES = ("hit", "partial", "missed")
 CALLS = ("off-track", "on-track")
 
@@ -414,10 +420,13 @@ def evaluate(rules, item, ctx, default=("on-track", "")) -> tuple[str, str]:
 
 def score_bet(bet: dict, today: dt.date, t: Thresholds) -> dict:
     """Read the status and rating the user wrote. Do not invent either."""
+    odds = parse_odds(bet.get("odds"))
     return {
         **bet,
         "status": _canon(bet.get("status"), STATUSES),
         "rating": _canon(bet.get("rating"), RATINGS),
+        "decision": _canon(bet.get("decision"), DECISIONS),
+        "odds": "" if odds is None else odds,
     }
 
 
@@ -428,7 +437,9 @@ def _next_date(bet: dict, today: dt.date) -> str:
 
 
 def follow_ups(scored: list[dict], today: dt.date, t: Thresholds) -> list[dict]:
-    """What to ask whom. Status and rating are the user's to set."""
+    """What to ask whom. Status, rating, odds and the decision call are the user's to set.
+    Odds are asked for only while a bet is in progress: written after the result is
+    known, they would only record hindsight."""
     out = []
     for b in scored:
         owner = b["owner"].strip() or "(no owner)"
@@ -441,9 +452,15 @@ def follow_ups(scored: list[dict], today: dt.date, t: Thresholds) -> list[dict]:
             ask("owner", "Name an owner for this bet")
         if not b["status"]:
             ask("status", "Set the status: in progress, paused, or done")
+        elif b["status"] == "in progress" and (b["odds"] == "" or not str(b.get("wrong_if") or "").strip()):
+            ask("odds", "Write the odds you give it and what would prove it wrong")
+        elif b["status"] == "done" and not b["rating"] and not b["decision"]:
+            ask("rating", "Rate the result (won, lost, or push) and, apart from it, the decision (good or bad)")
         elif b["status"] == "done" and not b["rating"]:
-            ask("rating", "Rate this bet: won, lost, or push")
-    order = {"owner": 0, "status": 1, "rating": 2}
+            ask("rating", "Rate the result: won, lost, or push")
+        elif b["status"] == "done" and not b["decision"]:
+            ask("decision", "Rate the decision as it was made, apart from the result: good or bad")
+    order = {"owner": 0, "status": 1, "odds": 2, "rating": 3, "decision": 4}
     out.sort(key=lambda f: (f["owner"].lower(), order[f["kind"]], f["bet"].lower()))
     return out
 
@@ -528,6 +545,27 @@ def _canon(value, allowed: tuple[str, ...]) -> str:
     return s if s in allowed else ""
 
 
+def parse_odds(value) -> int | None:
+    """The odds the user gives a bet, as a whole percent from 0 to 100.
+    Takes 60, 60%, or 0.6. None when blank or not one of those."""
+    s = str(value or "").strip().rstrip("%").strip()
+    if not s or not re.fullmatch(r"\d+(\.\d+)?", s):
+        return None
+    x = float(s)
+    if "." in s and x <= 1 and not str(value).strip().endswith("%"):
+        x *= 100
+    return int(round(x)) if 0 <= x <= 100 else None
+
+
+def check_odds(value) -> str:
+    if str(value or "").strip() == "":
+        return ""
+    n = parse_odds(value)
+    if n is None:
+        raise SystemExit(f"bets: odds must be a percent from 0 to 100 (60, 60% or 0.6), got {value!r}")
+    return str(n)
+
+
 def validate_new(bet: dict) -> dict:
     if not isinstance(bet, dict) or not str(bet.get("bet") or "").strip():
         raise SystemExit("bets: each bet needs a \"bet\" name")
@@ -544,8 +582,12 @@ def validate_new(bet: dict) -> dict:
         raise SystemExit(f"bets: status must be one of {', '.join(STATUSES)}")
     if str(bet.get("rating") or "").strip() and not _canon(bet.get("rating"), RATINGS):
         raise SystemExit(f"bets: rating must be one of {', '.join(RATINGS)}, or left out")
+    if str(bet.get("decision") or "").strip() and not _canon(bet.get("decision"), DECISIONS):
+        raise SystemExit(f"bets: decision must be one of {', '.join(DECISIONS)}, or left out")
     bet["status"] = _canon(bet.get("status"), STATUSES) or "in progress"
     bet["rating"] = _canon(bet.get("rating"), RATINGS)
+    bet["decision"] = _canon(bet.get("decision"), DECISIONS)
+    bet["odds"] = check_odds(bet.get("odds"))
     return bet
 
 
@@ -633,6 +675,12 @@ def cmd_set(path: str, pairs: list[str]) -> dict:
             if v and not _canon(v, RATINGS):
                 raise SystemExit(f"bets: rating must be one of {', '.join(RATINGS)}, or empty")
             v = _canon(v, RATINGS)
+        if k == "decision":
+            if v and not _canon(v, DECISIONS):
+                raise SystemExit(f"bets: decision must be one of {', '.join(DECISIONS)}, or empty")
+            v = _canon(v, DECISIONS)
+        if k == "odds":
+            v = check_odds(v)
         values[k] = v
     _write(path, write_fields(text, values))
     return values
@@ -665,8 +713,76 @@ def _kpi_cell(b: dict) -> str:
     return "; ".join(parts) or "none set"
 
 
+def _odds_cell(b: dict) -> str:
+    return f"{b['odds']}%" if b.get("odds") != "" and b.get("odds") is not None else "—"
+
+
+ROW_HEAD = ["| Bet | Owner | Odds | Decision | Rating | Value |", "|---|---|---|---|---|---|"]
+
+
 def _bet_row(b: dict) -> str:
-    return (f"| {_link(b)} | {_cell(b['owner'] or '—')} | {b['rating'] or '—'} | {_cell(b.get('value') or '—')} |")
+    return (f"| {_link(b)} | {_cell(b['owner'] or '—')} | {_odds_cell(b)} | {b.get('decision') or '—'} "
+            f"| {b['rating'] or '—'} | {_cell(b.get('value') or '—')} |")
+
+
+GRID_RESULTS = ["won", "push", "lost"]
+GRID_LABEL = {
+    ("good", "won"): "Earned it", ("good", "push"): "Good call, even", ("good", "lost"): "Bad luck",
+    ("bad", "won"): "Got lucky", ("bad", "push"): "Bad call, even", ("bad", "lost"): "Learn from it",
+}
+
+
+def grid_text(done: list[dict]) -> list[str]:
+    """Decision against result for done bets: a good call can lose and a bad call can win."""
+    rated = [b for b in done if b["decision"] and b["rating"]]
+    out = ["## Decision against result", "",
+           "Done bets the user rated twice: the decision as it was made, and the result.", ""]
+    if not rated:
+        return out + ["None rated both ways yet.", ""]
+    out += ["| Decision | Won | Push | Lost |", "|---|---|---|---|"]
+    for d in DECISIONS:
+        cells = []
+        for r in GRID_RESULTS:
+            names = sorted((b for b in rated if b["decision"] == d and b["rating"] == r), key=lambda b: b["bet"].lower())
+            links = ", ".join(_link(b) for b in names)
+            cells.append(f"{GRID_LABEL[(d, r)]}: {len(names)}" + (f"<br>{links}" if links else ""))
+        out.append(f"| {d.capitalize()} | " + " | ".join(cells) + " |")
+    out.append("")
+    missing = [b for b in done if not (b["decision"] and b["rating"])]
+    if missing:
+        out += [f"{len(missing)} done {'bet is' if len(missing) == 1 else 'bets are'} missing a decision or a result rating.", ""]
+    return out
+
+
+def calibration(done: list[dict]) -> dict | None:
+    """Average odds against how often the bets won, for done bets with odds and a won or lost result.
+    A push counts toward neither."""
+    rows = [b for b in done if b["odds"] != "" and b["rating"] in ("won", "lost")]
+    if not rows:
+        return None
+    avg = sum(b["odds"] for b in rows) / len(rows)
+    won = sum(1 for b in rows if b["rating"] == "won")
+    return {"bets": len(rows), "average_odds": round(avg), "won": won, "win_rate": round(100 * won / len(rows))}
+
+
+def calibration_text(cal: dict | None) -> list[str]:
+    out = ["## Odds against results", ""]
+    if not cal:
+        return out + ["No done bet has both odds and a won or lost result yet.", ""]
+    n = cal["bets"]
+    gap = cal["average_odds"] - cal["win_rate"]
+    if abs(gap) < 10:
+        read = "The odds and the results are within 10 points."
+    elif gap > 0:
+        read = f"The odds ran {gap} points above the results."
+    else:
+        read = f"The results ran {-gap} points above the odds."
+    out.append(f"{n} {'bet' if n == 1 else 'bets'} with odds and a won or lost result: average odds "
+               f"{cal['average_odds']}%, {cal['won']} of {n} won ({cal['win_rate']}%). {read}")
+    if n < 10:
+        out.append("")
+        out.append(f"With {n} {'bet' if n == 1 else 'bets'}, this gap says little yet.")
+    return out + [""]
 
 
 def radar_text(scored: list[dict], fus: list[dict], today: dt.date, area: str | None) -> str:
@@ -680,25 +796,28 @@ def radar_text(scored: list[dict], fus: list[dict], today: dt.date, area: str | 
     out = [
         "---", "type: bet-radar", f"updated: {today.isoformat()}", "---",
         f"# Bet Radar{scope}", "",
-        f"Written by `bets.py score` on {short(today)}. Each run rewrites this note. Status and rating are set on the bet notes.", "",
+        f"Written by `bets.py score` on {short(today)}. Each run rewrites this note. Status, odds, decision and rating are set on the bet notes.", "",
         f"**{len(scored)} bets** · {summary or 'none yet'}", "",
     ]
     for s in STATUS_ORDER:
         rows = sorted(groups[s], key=lambda b: b["bet"].lower())
         out += [f"## {STATUS_LABEL[s]}", ""]
         if rows:
-            out += ["| Bet | Owner | Rating | Value |", "|---|---|---|---|"]
+            out += ROW_HEAD
             out += [_bet_row(b) for b in rows]
         else:
             out.append("None.")
         out.append("")
     out += ["## Not set", ""]
     if unset:
-        out += ["| Bet | Owner | Rating | Value |", "|---|---|---|---|"]
+        out += ROW_HEAD
         out += [_bet_row(b) for b in sorted(unset, key=lambda b: b["bet"].lower())]
     else:
         out.append("None.")
-    out += ["", "## Follow-ups", ""]
+    out += [""]
+    out += grid_text(groups["done"])
+    out += calibration_text(calibration(groups["done"]))
+    out += ["## Follow-ups", ""]
     if fus:
         owner = None
         for f in fus:
@@ -711,12 +830,21 @@ def radar_text(scored: list[dict], fus: list[dict], today: dt.date, area: str | 
     where = f'"{BETS_DIR}"'
     area_filter = f' AND area = "{area}"' if area else ""
     out += ["", "## Live view", "",
-            "Dataview reads the status and rating on each bet note.", "",
+            "Dataview reads the status, odds, decision and rating on each bet note.", "",
             "```dataview",
-            'TABLE WITHOUT ID file.link AS "Bet", owner AS "Owner", status AS "Status", rating AS "Rating", value AS "Value"',
+            'TABLE WITHOUT ID file.link AS "Bet", owner AS "Owner", status AS "Status", odds AS "Odds", '
+            'decision AS "Decision", rating AS "Rating", value AS "Value"',
             f'FROM {where}',
             f'WHERE type = "bet"{area_filter}',
             "SORT status ASC, file.name ASC",
+            "```", "",
+            "Done bets by decision and result:", "",
+            "```dataview",
+            'TABLE WITHOUT ID key AS "Decision, result", length(rows) AS "Bets", rows.file.link AS "Which"',
+            f'FROM {where}',
+            f'WHERE type = "bet" AND status = "done" AND decision AND rating{area_filter}',
+            'GROUP BY decision + ", " + rating',
+            "SORT key ASC",
             "```", ""]
     return "\n".join(out)
 
@@ -731,8 +859,12 @@ def cmd_score(vault: str, today: dt.date, t: Thresholds, area: str | None, out_r
     _write(path, radar_text(shown, fus, today, area))
     counts = {s: sum(1 for b in shown if b["status"] == s) for s in STATUS_ORDER}
     counts["not set"] = sum(1 for b in shown if not b["status"])
+    done = [b for b in shown if b["status"] == "done"]
+    grid = {f"{d}, {r}": sum(1 for b in done if b["decision"] == d and b["rating"] == r)
+            for d in DECISIONS for r in GRID_RESULTS}
     return {"date": today.isoformat(), "radar": rel, "bets": len(shown), "notes_updated": 0,
-            "status": counts, "follow_ups": len(fus)}
+            "status": counts, "decision_vs_result": grid, "calibration": calibration(done),
+            "follow_ups": len(fus)}
 
 
 def public(b: dict) -> dict:
