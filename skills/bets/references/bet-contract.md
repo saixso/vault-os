@@ -1,7 +1,7 @@
 # Bet contract
 
-The shape of a bet note, the rules that score it, and who writes what. The
-`bets` skill and `scripts/bets.py` follow this.
+The shape of a bet note, and who writes what. The `bets` skill and
+`scripts/bets.py` follow this.
 
 ## Where notes live
 
@@ -13,114 +13,93 @@ The shape of a bet note, the rules that score it, and who writes what. The
 - The radar is `bets/Bet Radar.md` (`type: bet-radar`), rewritten on every
   `score` run. Nobody edits it by hand.
 - Template: the vault's `templates/bet.md` if it has one, else
-  `skills/bets/templates/bet.md`. Placeholders are `{{field}}`; a vault's own
-  template keeps `type: bet` and the section headings below.
+  `skills/bets/templates/bet.md`.
 
 ## Frontmatter
 
 | Field | Who | Meaning |
 |---|---|---|
 | `bet` | user | Name of the bet |
-| `owner` | user | One person who answers for it. For a personal bet, the user |
+| `owner` | user | One person who answers for it |
 | `area` | user | `work` or `life` |
-| `cycle` | user | Cycle label, optional |
-| `appetite` | user | Time budget in words ("6 weeks"), optional |
-| `cycle_start`, `cycle_end` | user | `YYYY-MM-DD` |
-| `started` | user | Date work started. Blank means not started, unless a milestone is ticked |
-| `shipped` | user | Date it shipped |
-| `dropped` | user | Date it was stopped |
-| `outcome` | user | `hit`, `partial` or `missed`: the user's own call. Blank means the KPI decides |
+| `cycle` | user | Cycle label, optional. It does not set the status |
+| `status` | user | `in progress`, `paused`, or `done` |
+| `odds` | user | How likely the user thinks the bet is to work, a whole percent from 0 to 100. Written when the bet is placed. `60%` and `0.6` are stored as `60` |
+| `wrong_if` | user | What would prove the bet wrong. Written when the bet is placed |
+| `stake` | user | `small`, `medium`, or `large`: how much the bet risks. Written when the bet is placed |
+| `stake_note` | user | What would be lost if the bet fails, in the user's words |
+| `decision` | user | `good` or `bad`: the decision judged on what was known when the bet was placed, not on how it turned out. Blank until the user rates it |
+| `rating` | user | The result: `won`, `lost`, or `push`. Blank until the user rates it |
+| `why` | user | Why the bet was placed |
+| `value` | user | The business number that says whether it paid off. Blank if there is no number yet |
 | `source` | agent | `backfill` for notes made from memory |
-| `status`, `status_reason`, `delivery`, `kpi_result`, `last_signal` | `bets.py score` | Overwritten on each run |
 
-## Body lines
+`score` reads `status`, `odds`, `stake`, `decision` and `rating`. It does not write them.
 
-Each kind has its own section. `bets.py` appends to the right one.
+The decision and the result are two ratings, not one. A good decision can
+lose and a bad one can win, so neither is ever filled in from the other.
+
+Anything outside the three status words (`off-track`, `drifting`, a blank)
+shows on the radar as not set. The note is left as it is until the user sets one.
+
+## Body
 
 ```
-## Milestones
-- [ ] #milestone Pilot at 5 sites 📅 2026-12-04
-- [x] #milestone Spec agreed 📅 2026-11-13 [done:: 2026-11-12]
+## Why
 
-## KPIs
-- #kpi Repeat tickets per week [baseline:: 40] [target:: 25] [read_by:: 2027-01-15]
+{{why}}
 
-## Readings
-- 2026-12-08 #reading Repeat tickets per week [value:: 32]
+## Proved wrong if
 
-## Blockers
-- [ ] #blocker Waiting on the vendor quote [opened:: 2026-11-20]
+{{wrong_if}}
 
-## Signals
-- 2026-11-23 Pilot hardware arrived
-- 2026-11-30 Install slipped a week #off-track
+## At stake
+
+{{at_stake}}
+
+## Value
+
+{{value}}
+
+## Notes
 ```
 
-- Dates are `YYYY-MM-DD`. Milestone dates use the Obsidian Tasks `📅` format.
-- `direction:: up|down` on a KPI is optional; without it, a target below the
-  baseline means lower is better.
-- A reading's metric must match a KPI line in the same note (case does not matter).
-- `#off-track` and `#on-track` on a signal record the owner's own call.
+`{{at_stake}}` is the stake and the stake note joined as `large: what you
+would lose`, or just the one that is set.
 
-## Status rules
-
-Run on every bet that is not shipped, dropped or upcoming. The first rule that
-matches sets the status and its reason.
-
-| Status | When |
-|---|---|
-| off-track | The owner's latest call is `#off-track` |
-| off-track | An open milestone's date has passed |
-| off-track | The cycle has ended and it has not shipped |
-| drifting | A blocker has been open `blocker_days` (7) or more |
-| drifting | Work has not started and the next date (milestone or cycle end) is under `warn_days` (14) away |
-| stalled | No owner |
-| stalled | No signal for more than `stale_days` (7); with no signals, counted from `started` or `cycle_start` |
-| on-track | None of the above |
-
-Before the rules:
-
-- `dropped` set: **dropped**.
-- `shipped` set: **shipped**.
-- `cycle_start` in the future and an owner named: **upcoming**.
-
-Thresholds come from `bets/bets-config.json`
-(`{"blocker_days": 7, "stale_days": 7, "warn_days": 14}`), and the flags
-`--blocker-days`, `--stale-days`, `--warn-days` win over the file.
-
-## Delivery and outcome
-
-Delivery, from the dates:
-
-| Delivery | When |
-|---|---|
-| on-time | `shipped` on or before `cycle_end` |
-| late | `shipped` after `cycle_end` |
-| not-shipped | `cycle_end` has passed, nothing shipped |
-| dropped | `dropped` set |
-| in-progress, upcoming | the cycle is running or has not started |
-
-KPI result, from each KPI's latest reading:
-
-| Result | When |
-|---|---|
-| hit | the reading reached the target |
-| partial | it moved from the baseline toward the target but did not reach it |
-| missed | it did not move past the baseline |
-| not-read | no reading yet |
-
-A bet with several KPIs is `hit` when every read KPI hit, `missed` when every
-read KPI missed, and `partial` otherwise. The radar shows the user's `outcome`
-when set, and the KPI result otherwise.
+When `bets.py set` changes `why`, `wrong_if`, `stake`, `stake_note` or `value`,
+it rewrites the matching section (Why, Proved wrong if, At stake, Value) too,
+as long as the section still holds the old text or nothing. A section the user
+edited by hand is kept, and `set` says so on stderr.
 
 ## Follow-ups
 
-Each names the bet's owner, for the user to chase:
+Each names the bet's owner:
 
-- no owner: name one;
-- off track: agree a scope cut, a new date or a stop;
-- a KPI whose `read_by` date has passed with no reading on or after it: get the reading;
-- a blocker open `blocker_days` or more: ask what clears it;
-- stalled with an owner: ask for an update.
+- no owner: name one
+- status is not one of the three: set in progress, paused, or done
+- status is in progress and odds or wrong_if is blank: write both; once both
+  are there and stake is blank: say what is at stake. Not asked
+  once a bet is paused or done, because odds written after the result only
+  record hindsight
+- status is done and rating or decision is blank: rate whichever is missing,
+  the result and the decision apart
 
-Dropped bets get none. Shipped bets get only KPI readings.
+## Radar
+
+`bets/Bet Radar.md` groups bets into In progress, Paused, Done, and Not set.
+Each row shows the owner, the odds, the decision, the rating, and the value.
+
+Under that:
+
+- **Decision against result.** Done bets with both ratings, in a grid of
+  decision (good, bad) by result (won, push, lost): earned it, bad luck, got
+  lucky, learn from it, and the two pushes.
+- **Odds against results.** For done bets with odds and a won or lost result:
+  the average odds and the share that won. Under 10 bets, the radar says the
+  gap says little yet.
+- **Results by stake.** For each stake with done bets that won or lost: how
+  many, how many won, and the average odds. A large bet needs better odds
+  than a small one, so the large row is the one to watch.
+- **Follow-ups**, then two Dataview blocks: every bet with these fields, and
+  done bets grouped by decision and result.

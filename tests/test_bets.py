@@ -36,9 +36,8 @@ def bet(**kw):
     return base
 
 
-def status(b, today=TODAY, t=T):
-    s = bets.score_bet(b, today, t)
-    return s["status"], s["status_reason"]
+def scored(b, today=TODAY, t=T):
+    return bets.score_bet(b, today, t)
 
 
 class Kpis(unittest.TestCase):
@@ -93,126 +92,116 @@ class Delivery(unittest.TestCase):
 
 
 class Status(unittest.TestCase):
-    def test_on_track(self):
-        self.assertEqual(status(bet()), ("on-track", ""))
+    def test_user_status_and_rating_pass_through(self):
+        b = bet(status="done", rating="won", cycle_end="2026-11-20")
+        s = scored(b)
+        self.assertEqual((s["status"], s["rating"]), ("done", "won"))
 
-    def test_owner_called_off_track(self):
-        b = bet(signals=[{"date": "2026-11-21", "text": "Slipped", "call": "off-track"}])
-        self.assertEqual(status(b)[0], "off-track")
-        self.assertIn("owner called it off track", status(b)[1])
+    def test_cycle_end_does_not_decide_status(self):
+        s = scored(bet(status="in progress", cycle_end="2026-11-20", shipped=""))
+        self.assertEqual(s["status"], "in progress")
 
-    def test_later_on_track_call_clears_it(self):
-        b = bet(signals=[{"date": "2026-11-18", "text": "Slipped", "call": "off-track"},
-                         {"date": "2026-11-21", "text": "Recovered", "call": "on-track"}])
-        self.assertEqual(status(b)[0], "on-track")
-
-    def test_milestone_date_passed(self):
-        b = bet(milestones=[{"done": False, "text": "Pilot live", "due": "2026-11-20", "done_on": None}])
-        self.assertEqual(status(b), ("off-track", 'milestone "Pilot live" was due Nov 20, 2026'))
-
-    def test_ticked_milestone_does_not_count(self):
-        b = bet(milestones=[{"done": True, "text": "Pilot live", "due": "2026-11-20", "done_on": "2026-11-19"}])
-        self.assertEqual(status(b)[0], "on-track")
-
-    def test_cycle_over_not_shipped(self):
-        b = bet(cycle_end="2026-11-20")
-        self.assertEqual(status(b), ("off-track", "cycle ended Nov 20, 2026 and it has not shipped"))
-
-    def test_old_blocker_drifts(self):
-        b = bet(blockers=[{"open": True, "text": "Vendor quote", "opened": "2026-11-15", "cleared": None}])
-        self.assertEqual(status(b), ("drifting", "blocker open 8 days: Vendor quote"))
-
-    def test_young_or_cleared_blocker_is_fine(self):
-        young = bet(blockers=[{"open": True, "text": "Vendor quote", "opened": "2026-11-20", "cleared": None}])
-        cleared = bet(blockers=[{"open": False, "text": "Vendor quote", "opened": "2026-11-01", "cleared": "2026-11-05"}])
-        self.assertEqual(status(young)[0], "on-track")
-        self.assertEqual(status(cleared)[0], "on-track")
-
-    def test_blocker_threshold_is_configurable(self):
-        b = bet(blockers=[{"open": True, "text": "Vendor quote", "opened": "2026-11-15", "cleared": None}])
-        self.assertEqual(status(b, t=bets.Thresholds(blocker_days=10))[0], "on-track")
-
-    def test_close_date_and_not_started_drifts(self):
-        b = bet(started="", cycle_end="2026-12-04")
-        self.assertEqual(status(b), ("drifting", "Dec 4, 2026 is 11 days away and work has not started"))
-        b = bet(started="", milestones=[{"done": False, "text": "Spec", "due": "2026-11-30", "done_on": None}])
-        self.assertEqual(status(b)[0], "drifting")
-
-    def test_ticked_milestone_counts_as_started(self):
-        b = bet(started="", cycle_end="2026-12-04",
-                milestones=[{"done": True, "text": "Spec", "due": "2026-11-20", "done_on": "2026-11-19"}])
-        self.assertEqual(status(b)[0], "on-track")
-
-    def test_far_date_not_started_is_fine(self):
-        self.assertEqual(status(bet(started="", cycle_end="2027-01-29"))[0], "on-track")
-
-    def test_no_owner_stalls(self):
-        self.assertEqual(status(bet(owner="")), ("stalled", "no owner"))
-
-    def test_no_signal_for_a_week_stalls(self):
-        b = bet(signals=[{"date": "2026-11-12", "text": "Kickoff", "call": None}])
-        self.assertEqual(status(b), ("stalled", "no signal for 11 days"))
-        self.assertEqual(status(b, t=bets.Thresholds(stale_days=14))[0], "on-track")
-
-    def test_no_signals_counts_from_start(self):
-        self.assertEqual(status(bet(signals=[], started="2026-11-03")),
-                         ("stalled", "no signal since the cycle started Nov 3, 2026"))
-        self.assertEqual(status(bet(signals=[], started="2026-11-20"))[0], "on-track")
-
-    def test_order_off_track_before_drifting_before_stalled(self):
-        b = bet(owner="", cycle_end="2026-11-20",
-                blockers=[{"open": True, "text": "X", "opened": "2026-11-01", "cleared": None}])
-        self.assertEqual(status(b)[0], "off-track")
-        b = bet(owner="", blockers=[{"open": True, "text": "X", "opened": "2026-11-01", "cleared": None}])
-        self.assertEqual(status(b)[0], "drifting")
-
-    def test_finished_and_future_bets(self):
-        self.assertEqual(status(bet(shipped="2026-11-20"))[0], "shipped")
-        self.assertEqual(status(bet(shipped="2026-12-20"))[1], "shipped Dec 20, 2026 (late)")
-        self.assertEqual(status(bet(dropped="2026-11-20"))[0], "dropped")
-        self.assertEqual(status(bet(cycle_start="2026-12-07", started=""))[0], "upcoming")
-        self.assertEqual(status(bet(cycle_start="2026-12-07", owner=""))[0], "stalled")
-
-    def test_user_outcome_wins_over_kpi(self):
-        b = bet(shipped="2026-11-20", outcome="hit",
-                kpis=[{"metric": "Tickets", "baseline": "40", "target": "25", "read_by": "", "direction": None}],
-                readings=[{"date": "2026-11-21", "metric": "Tickets", "value": "41"}])
-        s = bets.score_bet(b, TODAY, T)
-        self.assertEqual((s["kpi_result"], s["final_outcome"], s["outcome_by"]), ("missed", "hit", "user"))
+    def test_old_or_blank_status_is_not_one_of_the_three(self):
+        self.assertEqual(scored(bet(status="off-track"))["status"], "")
+        self.assertEqual(scored(bet(status=""))["status"], "")
+        self.assertEqual(scored(bet(rating="great"))["rating"], "")
 
 
 class FollowUps(unittest.TestCase):
     def fus(self, *bs):
-        scored = [bets.score_bet(b, TODAY, T) for b in bs]
-        return bets.follow_ups(scored, TODAY, T)
+        rows = [bets.score_bet(b, TODAY, T) for b in bs]
+        return bets.follow_ups(rows, TODAY, T)
 
-    def test_kpi_reading_past_read_date_is_asked_of_owner(self):
-        k = [{"metric": "Tickets", "baseline": "40", "target": "25", "read_by": "2026-11-16", "direction": None}]
-        fus = self.fus(bet(shipped="2026-11-10", kpis=k))
-        self.assertEqual([(f["owner"], f["kind"], f["days_overdue"]) for f in fus], [("Alex", "kpi-reading", 7)])
-        early = [{"date": "2026-11-10", "metric": "Tickets", "value": "30"}]
-        self.assertEqual(len(self.fus(bet(shipped="2026-11-10", kpis=k, readings=early))), 1)
-        on_time = [{"date": "2026-11-16", "metric": "Tickets", "value": "30"}]
-        self.assertEqual(self.fus(bet(shipped="2026-11-10", kpis=k, readings=on_time)), [])
-
-    def test_future_read_date_is_not_asked(self):
-        k = [{"metric": "Tickets", "baseline": "40", "target": "25", "read_by": "2026-12-16", "direction": None}]
-        self.assertEqual(self.fus(bet(shipped="2026-11-10", kpis=k)), [])
-
-    def test_kinds_and_order(self):
+    def test_asks_for_status_and_for_a_rating_once_done(self):
         fus = self.fus(
-            bet(bet="B", note="B", owner="Sam", blockers=[{"open": True, "text": "Access", "opened": "2026-11-10", "cleared": None}]),
-            bet(bet="A", note="A", owner="Sam", signals=[{"date": "2026-11-01", "text": "x", "call": None}]),
-            bet(bet="C", note="C", owner=""),
-            bet(bet="D", note="D", owner="Sam", cycle_end="2026-11-20"),
-            bet(bet="E", note="E", owner="Sam", dropped="2026-11-01", cycle_end="2026-11-20"),
+            bet(bet="C", note="C", owner="", status=""),
+            bet(bet="D", note="D", owner="Sam", status="done", rating=""),
+            bet(bet="A", note="A", owner="Sam", status="in progress", rating=""),
+            bet(bet="B", note="B", owner="Sam", status="paused", rating=""),
+            bet(bet="E", note="E", owner="Sam", status="done", rating="won"),
         )
         self.assertEqual([(f["owner"], f["kind"], f["bet"]) for f in fus], [
             ("(no owner)", "owner", "C"),
-            ("Sam", "off-track", "D"),
-            ("Sam", "blocker", "B"),
-            ("Sam", "update", "A"),
+            ("(no owner)", "status", "C"),
+            ("Sam", "odds", "A"),
+            ("Sam", "rating", "D"),
+            ("Sam", "decision", "E"),
         ])
+
+    def test_odds_asked_only_while_in_progress(self):
+        fus = self.fus(
+            bet(bet="A", note="A", status="in progress", odds="", wrong_if="Churn stays flat"),
+            bet(bet="B", note="B", status="in progress", odds="60", wrong_if=""),
+            bet(bet="C", note="C", status="in progress", odds="60", wrong_if="Churn stays flat"),
+            bet(bet="D", note="D", status="paused", odds=""),
+            bet(bet="E", note="E", status="done", rating="won", decision="good", odds=""),
+            bet(bet="F", note="F", status="in progress", odds="60", wrong_if="Churn stays flat", stake="large"),
+        )
+        self.assertEqual([(f["kind"], f["bet"]) for f in fus], [("odds", "A"), ("odds", "B"), ("stake", "C")])
+
+    def test_one_ask_for_both_ratings_when_neither_is_set(self):
+        fus = self.fus(bet(bet="D", note="D", status="done", rating="", decision=""))
+        self.assertEqual([f["kind"] for f in fus], ["rating"])
+        self.assertIn("decision", fus[0]["ask"])
+        fus = self.fus(bet(bet="D", note="D", status="done", rating="", decision="good"))
+        self.assertNotIn("decision", fus[0]["ask"])
+
+
+class Odds(unittest.TestCase):
+    def test_forms(self):
+        for given, want in (("60", 60), ("60%", 60), ("0.6", 60), ("0.65", 65), ("100", 100), ("0", 0),
+                            ("1", 1), ("1.0", 100), ("12.5%", 12)):
+            self.assertEqual(bets.parse_odds(given), want, given)
+        for bad in ("", "high", "120", "-5", "60-70"):
+            self.assertIsNone(bets.parse_odds(bad), bad)
+
+    def test_decision_and_odds_pass_through_scoring(self):
+        s = scored(bet(status="done", rating="lost", decision="Good", odds="70%"))
+        self.assertEqual((s["decision"], s["odds"]), ("good", 70))
+        self.assertEqual(scored(bet(stake="Large"))["stake"], "large")
+        self.assertEqual(scored(bet(stake="huge"))["stake"], "")
+        self.assertEqual(scored(bet(decision="fine"))["decision"], "")
+
+
+class Calibration(unittest.TestCase):
+    def done(self, odds, rating, decision="good"):
+        return scored(bet(status="done", rating=rating, decision=decision, odds=odds))
+
+    def test_average_odds_against_win_rate(self):
+        cal = bets.calibration([self.done("80", "won"), self.done("80", "lost"), self.done("70", "lost"),
+                                self.done("90", "push"), self.done("", "won")])
+        self.assertEqual(cal, {"bets": 3, "average_odds": 77, "won": 1, "win_rate": 33})
+        text = "\n".join(bets.calibration_text(cal))
+        self.assertIn("The odds ran 44 points above the results.", text)
+        self.assertIn("says little yet", text)
+
+    def test_win_rate_by_stake(self):
+        rows = [scored(bet(status="done", rating="won", stake="large", odds="80")),
+                scored(bet(status="done", rating="lost", stake="large", odds="60")),
+                scored(bet(status="done", rating="lost", stake="large")),
+                scored(bet(status="done", rating="won", stake="small")),
+                scored(bet(status="done", rating="push", stake="medium")),
+                scored(bet(status="done", rating="won", stake=""))]
+        out = bets.by_stake(rows)
+        self.assertEqual(out, {"small": {"bets": 1, "won": 1, "win_rate": 100, "average_odds": None},
+                               "large": {"bets": 3, "won": 1, "win_rate": 33, "average_odds": 70}})
+        text = "\n".join(bets.stake_text(out))
+        self.assertIn("| Large | 3 | 1 | 33% | 70% |", text)
+        self.assertIn("| Small | 1 | 1 | 100% | — |", text)
+        self.assertNotIn("Medium", text)
+
+    def test_none_without_odds_and_a_result(self):
+        self.assertIsNone(bets.calibration([self.done("", "won"), self.done("60", "push")]))
+
+    def test_grid_places_a_good_call_that_lost_as_bad_luck(self):
+        rows = [scored(bet(bet="Win", note="Win", status="done", rating="won", decision="good")),
+                scored(bet(bet="Unlucky", note="Unlucky", status="done", rating="lost", decision="good")),
+                scored(bet(bet="Lucky", note="Lucky", status="done", rating="won", decision="bad")),
+                scored(bet(bet="Half", note="Half", status="done", rating="won", decision=""))]
+        text = "\n".join(bets.grid_text(rows))
+        self.assertIn("| Good | Earned it: 1<br>[[Win]] | Good call, even: 0 | Bad luck: 1<br>[[Unlucky]] |", text)
+        self.assertIn("| Bad | Got lucky: 1<br>[[Lucky]] | Bad call, even: 0 | Learn from it: 0 |", text)
+        self.assertIn("1 done bet is missing a decision or a result rating.", text)
 
 
 class VaultCase(unittest.TestCase):
@@ -257,16 +246,32 @@ class NewNotes(VaultCase):
         text = self.read("bets/Checkout redesign phase 1.md")
         self.assertIn('bet: "Checkout redesign: phase 1"', text)
         self.assertIn("# Checkout redesign: phase 1", text)
-        self.assertIn("- [x] #milestone New cart page live \U0001F4C5 2026-10-05 [done:: 2026-10-04]", text)
-        self.assertIn("- #kpi Cart abandonment % [baseline:: 68] [target:: 55] [read_by:: 2026-11-15]", text)
-        self.assertIn("- 2026-11-16 #reading Cart abandonment % [value:: 60]", text)
+        self.assertIn("status: in progress", text)
+        self.assertIn("why: Too many abandoned carts.", text)
+        self.assertIn("## Why\n\nToo many abandoned carts.", text)
+        self.assertNotIn("## Milestones", text)
+        self.assertNotIn("## Blockers", text)
         self.assertNotIn("{{", text)
         self.assertNotIn(" \n", text)
         b = bets.parse_bet(os.path.join(self.v, "bets/Checkout redesign phase 1.md"))
         self.assertEqual(b["bet"], "Checkout redesign: phase 1")
-        self.assertEqual(len(b["milestones"]) + len(b["kpis"]) + len(b["readings"]) + len(b["signals"]), 4)
-        self.assertEqual(b["kpis"][0]["metric"], "Cart abandonment %")
+        self.assertEqual(b["status"], "in progress")
+        self.assertEqual(b["why"], "Too many abandoned carts.")
         self.assertEqual(bets.parse_bet(os.path.join(self.v, "bets/Run a half marathon.md"))["area"], "life")
+
+    def test_new_bet_with_odds_and_wrong_if(self):
+        self.new({"bet": "Self-serve setup", "owner": "Sam", "why": "Setup calls take days.",
+                  "odds": "0.6", "wrong_if": "Setup time does not drop in 6 weeks",
+                  "stake": "Medium", "stake_note": "Six weeks of one engineer"})
+        text = self.read("bets/Self-serve setup.md")
+        self.assertIn("odds: 60\n", text)
+        self.assertIn("wrong_if: Setup time does not drop in 6 weeks\n", text)
+        self.assertIn("## Proved wrong if\n\nSetup time does not drop in 6 weeks", text)
+        self.assertIn("stake: medium\nstake_note: Six weeks of one engineer\n", text)
+        self.assertIn("## At stake\n\nmedium: Six weeks of one engineer", text)
+        self.assertRegex(text, r"\ndecision: ?\n")
+        b = bets.parse_bet(os.path.join(self.v, "bets/Self-serve setup.md"))
+        self.assertEqual((b["odds"], b["wrong_if"], b["decision"]), ("60", "Setup time does not drop in 6 weeks", ""))
 
     def test_never_overwrites(self):
         self.new({"bet": "Alpha"})
@@ -277,7 +282,9 @@ class NewNotes(VaultCase):
 
     def test_rejects_bad_input(self):
         for item in ({"owner": "Sam"}, {"bet": "X", "area": "hobby"}, {"bet": "X", "cycle_end": "next week"},
-                     {"bet": "X", "outcome": "great"}):
+                     {"bet": "X", "outcome": "great"}, {"bet": "X", "status": "off-track"},
+                     {"bet": "X", "rating": "great"}, {"bet": "X", "decision": "fine"},
+                     {"bet": "X", "odds": "likely"}, {"bet": "X", "odds": "150"}, {"bet": "X", "stake": "huge"}):
             r = self.cli("new", stdin=json.dumps(item), ok=False)
             self.assertNotEqual(r.returncode, 0, item)
         self.assertFalse(os.path.exists(os.path.join(self.v, "bets/X.md")))
@@ -293,8 +300,8 @@ class NewNotes(VaultCase):
 class Appends(VaultCase):
     def setUp(self):
         super().setUp()
-        self.new({"bet": "Alpha", "owner": "Sam", "cycle_start": "2026-11-02", "cycle_end": "2026-12-11",
-                  "kpis": [{"metric": "Repeat tickets", "baseline": "40", "target": "25", "read_by": "2026-12-18"}]})
+        self.new({"bet": "Alpha", "owner": "Sam", "cycle_start": "2026-11-02", "cycle_end": "2026-12-11"})
+        self.cli("kpi", "Alpha", "Repeat tickets", "--baseline", "40", "--target", "25", "--read-by", "2026-12-18")
 
     def test_signal_blocker_milestone_tick_reading(self):
         self.assertEqual(self.cli("signal", "Alpha", "Kickoff done", "--date", "2026-11-03").stdout.strip(), "added")
@@ -333,8 +340,43 @@ class Appends(VaultCase):
         out = json.loads(self.cli("set", "Alpha", "shipped=2026-12-10", "outcome=partial").stdout)
         self.assertEqual(out, {"shipped": "2026-12-10", "outcome": "partial"})
         self.assertIn("shipped: 2026-12-10", self.read("bets/Alpha.md"))
-        for bad in ("status=on-track", "shipped=soon", "outcome=great", "area=hobby"):
+        for bad in ("status=on-track", "shipped=soon", "outcome=great", "area=hobby", "decision=fine",
+                    "odds=likely", "odds=101", "stake=huge"):
             self.assertNotEqual(self.cli("set", "Alpha", bad, ok=False).returncode, 0, bad)
+
+    def test_set_odds_and_decision(self):
+        out = json.loads(self.cli("set", "Alpha", "odds=70%", "wrong_if=Tickets stay above 35",
+                                  "decision=Good", "stake=LARGE", "stake_note=A quarter of the team").stdout)
+        self.assertEqual(out, {"odds": "70", "wrong_if": "Tickets stay above 35", "decision": "good",
+                               "stake": "large", "stake_note": "A quarter of the team"})
+        text = self.read("bets/Alpha.md")
+        self.assertIn("odds: 70\n", text)
+        self.assertIn("decision: good\n", text)
+
+    def test_set_updates_the_matching_sections(self):
+        self.cli("set", "Alpha", "why=Cut repeat tickets", "value=Fewer calls", "stake=small",
+                 "stake_note=lose no time", "wrong_if=Tickets stay flat")
+        self.cli("set", "Alpha", "stake_note=lose a sprint", "why=Cut repeat tickets by half")
+        text = self.read("bets/Alpha.md")
+        body = text.split("\n---\n", 1)[1]
+        self.assertIn("## At stake\n\nsmall: lose a sprint\n\n## Value", body)
+        self.assertIn("## Why\n\nCut repeat tickets by half\n\n", body)
+        self.assertIn("## Value\n\nFewer calls\n\n## KPIs", body)
+        self.assertIn("## Proved wrong if\n\nTickets stay flat\n\n", body)
+        self.assertNotIn("lose no time", body)
+        self.assertIn("## Notes", body)
+
+    def test_set_keeps_a_section_edited_by_hand(self):
+        self.cli("set", "Alpha", "value=Fewer calls")
+        path = os.path.join(self.v, "bets", "Alpha.md")
+        text = self.read("bets/Alpha.md").replace("\n\nFewer calls\n", "\n\nFewer calls, and my own notes\n")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        r = self.cli("set", "Alpha", "value=Fewer repeat calls")
+        self.assertIn("Value section", r.stderr)
+        after = self.read("bets/Alpha.md")
+        self.assertIn("value: Fewer repeat calls\n", after)
+        self.assertIn("Fewer calls, and my own notes", after)
 
     def test_refuses_a_note_that_is_not_a_bet(self):
         with open(os.path.join(self.v, "bets", "Readme.md"), "w") as f:
@@ -359,25 +401,26 @@ class Score(VaultCase):
              "started": "2026-11-01", "signals": [{"date": "2026-11-22", "text": "10 km"}]},
         )
 
-    def test_score_writes_fields_and_radar(self):
+    def test_score_groups_by_status_and_does_not_rewrite_it(self):
+        self.cli("set", "Alpha", "status=paused")
+        self.cli("set", "Beta", "status=done", "rating=lost")
+        before = self.read("bets/Alpha.md")
         out = json.loads(self.cli("score", "--today", "2026-11-23").stdout)
         self.assertEqual(out["bets"], 5)
-        self.assertEqual(out["status"]["off-track"], 1)
-        self.assertEqual(out["status"]["shipped"], 2)
-        self.assertEqual(out["notes_updated"], 5)
-        beta = self.read("bets/Beta.md")
-        self.assertIn("status: off-track", beta)
-        self.assertIn('status_reason: milestone "Pilot" was due Nov 20, 2026', beta)
-        self.assertIn("kpi_result: hit", self.read("bets/Delta.md"))
-        self.assertIn("delivery: late", self.read("bets/Delta.md"))
+        self.assertEqual(out["notes_updated"], 0)
+        self.assertEqual(out["status"]["paused"], 1)
+        self.assertEqual(out["status"]["done"], 1)
+        self.assertEqual(self.read("bets/Alpha.md"), before)
+        self.assertIn("status: paused", self.read("bets/Alpha.md"))
         radar = self.read("bets/Bet Radar.md")
-        self.assertIn("| [[Beta]] | Alex | 🔴 off track |", radar)
-        self.assertIn("Get the KPI reading: Tickets (due Nov 15, 2026) (8 days overdue) · [[Gamma]]", radar)
-        self.assertIn("| Shipped on time | · | · | · | 1 | · | 1 |", radar)
-        self.assertIn("| Shipped late | 1 | · | · | · | · | 1 |", radar)
-        self.assertIn("Shipped on time: 1 of 2. Outcome hit: 1 of 1 with a result. 1 still have no result.", radar)
+        self.assertIn("## Paused", radar)
+        self.assertIn("| [[Alpha]] | Sam | — | — | — | — | — |", radar)
+        self.assertIn("| [[Beta]] | Alex | — | — | — | lost | — |", radar)
+        self.assertIn("## Results by stake", radar)
+        self.assertIn("Rate the decision as it was made", radar)
+        self.assertIn("## Decision against result", radar)
+        self.assertIn("## Odds against results", radar)
         self.assertIn("```dataview", radar)
-        # The radar itself is not read as a bet.
         self.assertEqual(len(json.loads(self.cli("list", "--today", "2026-11-23").stdout)), 5)
 
     def test_second_run_changes_nothing(self):
@@ -401,20 +444,42 @@ class Score(VaultCase):
         self.assertNotIn("[[Alpha]]", radar)
         self.assertIn('WHERE type = "bet" AND area = "life"', radar)
 
-    def test_thresholds_from_config_and_flags(self):
-        self.new({"bet": "Quiet", "owner": "Sam", "cycle_start": "2026-11-02", "cycle_end": "2026-12-31",
-                  "started": "2026-11-03", "signals": [{"date": "2026-11-13", "text": "x"}]})
-        quiet = lambda *a: next(b for b in json.loads(self.cli("list", "--today", "2026-11-23", *a).stdout) if b["bet"] == "Quiet")["status"]
-        self.assertEqual(quiet(), "stalled")
-        with open(os.path.join(self.v, "bets", "bets-config.json"), "w") as f:
-            json.dump({"stale_days": 14}, f)
-        self.assertEqual(quiet(), "on-track")
-        self.assertEqual(quiet("--stale-days", "5"), "stalled")
+    def test_score_leaves_an_old_status_word_unset(self):
+        with open(os.path.join(self.v, "bets/Alpha.md"), encoding="utf-8") as f:
+            text = f.read()
+        text = text.replace("status: in progress", "status: off-track")
+        with open(os.path.join(self.v, "bets/Alpha.md"), "w", encoding="utf-8") as f:
+            f.write(text)
+        self.cli("score", "--today", "2026-11-23")
+        self.assertIn("status: off-track", self.read("bets/Alpha.md"))
+        radar = self.read("bets/Bet Radar.md")
+        self.assertIn("## Not set", radar)
+        self.assertIn("[[Alpha]]", radar.split("## Not set", 1)[1])
 
     def test_follow_ups_json(self):
+        for n in ("Alpha", "Beta", "Delta", "Long run"):
+            self.cli("set", n, "odds=50", "wrong_if=It does not move", "stake=small")
+        self.cli("set", "Gamma", "status=done")
         fus = json.loads(self.cli("follow-ups", "--today", "2026-11-23").stdout)
         self.assertEqual([(f["owner"], f["kind"], f["bet"]) for f in fus],
-                         [("Alex", "off-track", "Beta"), ("Alex", "kpi-reading", "Gamma")])
+                         [("Alex", "rating", "Gamma")])
+
+    def test_radar_shows_decision_against_result_and_odds(self):
+        self.cli("set", "Alpha", "status=done", "rating=lost", "decision=good", "odds=80", "stake=large")
+        self.cli("set", "Beta", "status=done", "rating=won", "decision=bad", "odds=40")
+        self.cli("set", "Gamma", "status=done", "rating=won", "decision=good", "odds=70")
+        out = json.loads(self.cli("score", "--today", "2026-11-23").stdout)
+        self.assertEqual(out["decision_vs_result"]["good, lost"], 1)
+        self.assertEqual(out["decision_vs_result"]["bad, won"], 1)
+        self.assertEqual(out["calibration"], {"bets": 3, "average_odds": 63, "won": 2, "win_rate": 67})
+        radar = self.read("bets/Bet Radar.md")
+        self.assertIn("| [[Alpha]] | Sam | 80% | large | good | lost | — |", radar)
+        self.assertEqual(out["by_stake"], {"large": {"bets": 1, "won": 0, "win_rate": 0, "average_odds": 80}})
+        self.assertIn("| Large | 1 | 0 | 0% | 80% |", radar)
+        self.assertIn("Bad luck: 1<br>[[Alpha]]", radar)
+        self.assertIn("Got lucky: 1<br>[[Beta]]", radar)
+        self.assertIn("The odds and the results are within 10 points.", radar)
+        self.assertIn('GROUP BY decision + ", " + rating', radar)
 
 
 class Frontmatter(unittest.TestCase):
