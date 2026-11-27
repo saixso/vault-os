@@ -36,9 +36,8 @@ def bet(**kw):
     return base
 
 
-def status(b, today=TODAY, t=T):
-    s = bets.score_bet(b, today, t)
-    return s["status"], s["status_reason"]
+def scored(b, today=TODAY, t=T):
+    return bets.score_bet(b, today, t)
 
 
 class Kpis(unittest.TestCase):
@@ -93,125 +92,38 @@ class Delivery(unittest.TestCase):
 
 
 class Status(unittest.TestCase):
-    def test_on_track(self):
-        self.assertEqual(status(bet()), ("on-track", ""))
+    def test_user_status_and_rating_pass_through(self):
+        b = bet(status="done", rating="won", cycle_end="2026-11-20")
+        s = scored(b)
+        self.assertEqual((s["status"], s["rating"]), ("done", "won"))
 
-    def test_owner_called_off_track(self):
-        b = bet(signals=[{"date": "2026-11-21", "text": "Slipped", "call": "off-track"}])
-        self.assertEqual(status(b)[0], "off-track")
-        self.assertIn("owner called it off track", status(b)[1])
+    def test_cycle_end_does_not_decide_status(self):
+        s = scored(bet(status="in progress", cycle_end="2026-11-20", shipped=""))
+        self.assertEqual(s["status"], "in progress")
 
-    def test_later_on_track_call_clears_it(self):
-        b = bet(signals=[{"date": "2026-11-18", "text": "Slipped", "call": "off-track"},
-                         {"date": "2026-11-21", "text": "Recovered", "call": "on-track"}])
-        self.assertEqual(status(b)[0], "on-track")
-
-    def test_milestone_date_passed(self):
-        b = bet(milestones=[{"done": False, "text": "Pilot live", "due": "2026-11-20", "done_on": None}])
-        self.assertEqual(status(b), ("off-track", 'milestone "Pilot live" was due Nov 20, 2026'))
-
-    def test_ticked_milestone_does_not_count(self):
-        b = bet(milestones=[{"done": True, "text": "Pilot live", "due": "2026-11-20", "done_on": "2026-11-19"}])
-        self.assertEqual(status(b)[0], "on-track")
-
-    def test_cycle_over_not_shipped(self):
-        b = bet(cycle_end="2026-11-20")
-        self.assertEqual(status(b), ("off-track", "cycle ended Nov 20, 2026 and it has not shipped"))
-
-    def test_old_blocker_drifts(self):
-        b = bet(blockers=[{"open": True, "text": "Vendor quote", "opened": "2026-11-15", "cleared": None}])
-        self.assertEqual(status(b), ("drifting", "blocker open 8 days: Vendor quote"))
-
-    def test_young_or_cleared_blocker_is_fine(self):
-        young = bet(blockers=[{"open": True, "text": "Vendor quote", "opened": "2026-11-20", "cleared": None}])
-        cleared = bet(blockers=[{"open": False, "text": "Vendor quote", "opened": "2026-11-01", "cleared": "2026-11-05"}])
-        self.assertEqual(status(young)[0], "on-track")
-        self.assertEqual(status(cleared)[0], "on-track")
-
-    def test_blocker_threshold_is_configurable(self):
-        b = bet(blockers=[{"open": True, "text": "Vendor quote", "opened": "2026-11-15", "cleared": None}])
-        self.assertEqual(status(b, t=bets.Thresholds(blocker_days=10))[0], "on-track")
-
-    def test_close_date_and_not_started_drifts(self):
-        b = bet(started="", cycle_end="2026-12-04")
-        self.assertEqual(status(b), ("drifting", "Dec 4, 2026 is 11 days away and work has not started"))
-        b = bet(started="", milestones=[{"done": False, "text": "Spec", "due": "2026-11-30", "done_on": None}])
-        self.assertEqual(status(b)[0], "drifting")
-
-    def test_ticked_milestone_counts_as_started(self):
-        b = bet(started="", cycle_end="2026-12-04",
-                milestones=[{"done": True, "text": "Spec", "due": "2026-11-20", "done_on": "2026-11-19"}])
-        self.assertEqual(status(b)[0], "on-track")
-
-    def test_far_date_not_started_is_fine(self):
-        self.assertEqual(status(bet(started="", cycle_end="2027-01-29"))[0], "on-track")
-
-    def test_no_owner_stalls(self):
-        self.assertEqual(status(bet(owner="")), ("stalled", "no owner"))
-
-    def test_no_signal_for_a_week_stalls(self):
-        b = bet(signals=[{"date": "2026-11-12", "text": "Kickoff", "call": None}])
-        self.assertEqual(status(b), ("stalled", "no signal for 11 days"))
-        self.assertEqual(status(b, t=bets.Thresholds(stale_days=14))[0], "on-track")
-
-    def test_no_signals_counts_from_start(self):
-        self.assertEqual(status(bet(signals=[], started="2026-11-03")),
-                         ("stalled", "no signal since the cycle started Nov 3, 2026"))
-        self.assertEqual(status(bet(signals=[], started="2026-11-20"))[0], "on-track")
-
-    def test_order_off_track_before_drifting_before_stalled(self):
-        b = bet(owner="", cycle_end="2026-11-20",
-                blockers=[{"open": True, "text": "X", "opened": "2026-11-01", "cleared": None}])
-        self.assertEqual(status(b)[0], "off-track")
-        b = bet(owner="", blockers=[{"open": True, "text": "X", "opened": "2026-11-01", "cleared": None}])
-        self.assertEqual(status(b)[0], "drifting")
-
-    def test_finished_and_future_bets(self):
-        self.assertEqual(status(bet(shipped="2026-11-20"))[0], "shipped")
-        self.assertEqual(status(bet(shipped="2026-12-20"))[1], "shipped Dec 20, 2026 (late)")
-        self.assertEqual(status(bet(dropped="2026-11-20"))[0], "dropped")
-        self.assertEqual(status(bet(cycle_start="2026-12-07", started=""))[0], "upcoming")
-        self.assertEqual(status(bet(cycle_start="2026-12-07", owner=""))[0], "stalled")
-
-    def test_user_outcome_wins_over_kpi(self):
-        b = bet(shipped="2026-11-20", outcome="hit",
-                kpis=[{"metric": "Tickets", "baseline": "40", "target": "25", "read_by": "", "direction": None}],
-                readings=[{"date": "2026-11-21", "metric": "Tickets", "value": "41"}])
-        s = bets.score_bet(b, TODAY, T)
-        self.assertEqual((s["kpi_result"], s["final_outcome"], s["outcome_by"]), ("missed", "hit", "user"))
+    def test_old_or_blank_status_is_not_one_of_the_three(self):
+        self.assertEqual(scored(bet(status="off-track"))["status"], "")
+        self.assertEqual(scored(bet(status=""))["status"], "")
+        self.assertEqual(scored(bet(rating="great"))["rating"], "")
 
 
 class FollowUps(unittest.TestCase):
     def fus(self, *bs):
-        scored = [bets.score_bet(b, TODAY, T) for b in bs]
-        return bets.follow_ups(scored, TODAY, T)
+        rows = [bets.score_bet(b, TODAY, T) for b in bs]
+        return bets.follow_ups(rows, TODAY, T)
 
-    def test_kpi_reading_past_read_date_is_asked_of_owner(self):
-        k = [{"metric": "Tickets", "baseline": "40", "target": "25", "read_by": "2026-11-16", "direction": None}]
-        fus = self.fus(bet(shipped="2026-11-10", kpis=k))
-        self.assertEqual([(f["owner"], f["kind"], f["days_overdue"]) for f in fus], [("Alex", "kpi-reading", 7)])
-        early = [{"date": "2026-11-10", "metric": "Tickets", "value": "30"}]
-        self.assertEqual(len(self.fus(bet(shipped="2026-11-10", kpis=k, readings=early))), 1)
-        on_time = [{"date": "2026-11-16", "metric": "Tickets", "value": "30"}]
-        self.assertEqual(self.fus(bet(shipped="2026-11-10", kpis=k, readings=on_time)), [])
-
-    def test_future_read_date_is_not_asked(self):
-        k = [{"metric": "Tickets", "baseline": "40", "target": "25", "read_by": "2026-12-16", "direction": None}]
-        self.assertEqual(self.fus(bet(shipped="2026-11-10", kpis=k)), [])
-
-    def test_kinds_and_order(self):
+    def test_asks_for_status_and_for_a_rating_once_done(self):
         fus = self.fus(
-            bet(bet="B", note="B", owner="Sam", blockers=[{"open": True, "text": "Access", "opened": "2026-11-10", "cleared": None}]),
-            bet(bet="A", note="A", owner="Sam", signals=[{"date": "2026-11-01", "text": "x", "call": None}]),
-            bet(bet="C", note="C", owner=""),
-            bet(bet="D", note="D", owner="Sam", cycle_end="2026-11-20"),
-            bet(bet="E", note="E", owner="Sam", dropped="2026-11-01", cycle_end="2026-11-20"),
+            bet(bet="C", note="C", owner="", status=""),
+            bet(bet="D", note="D", owner="Sam", status="done", rating=""),
+            bet(bet="A", note="A", owner="Sam", status="in progress", rating=""),
+            bet(bet="B", note="B", owner="Sam", status="paused", rating=""),
+            bet(bet="E", note="E", owner="Sam", status="done", rating="won"),
         )
         self.assertEqual([(f["owner"], f["kind"], f["bet"]) for f in fus], [
             ("(no owner)", "owner", "C"),
-            ("Sam", "off-track", "D"),
-            ("Sam", "blocker", "B"),
-            ("Sam", "update", "A"),
+            ("(no owner)", "status", "C"),
+            ("Sam", "rating", "D"),
         ])
 
 
@@ -257,15 +169,17 @@ class NewNotes(VaultCase):
         text = self.read("bets/Checkout redesign phase 1.md")
         self.assertIn('bet: "Checkout redesign: phase 1"', text)
         self.assertIn("# Checkout redesign: phase 1", text)
-        self.assertIn("- [x] #milestone New cart page live \U0001F4C5 2026-10-05 [done:: 2026-10-04]", text)
-        self.assertIn("- #kpi Cart abandonment % [baseline:: 68] [target:: 55] [read_by:: 2026-11-15]", text)
-        self.assertIn("- 2026-11-16 #reading Cart abandonment % [value:: 60]", text)
+        self.assertIn("status: in progress", text)
+        self.assertIn("why: Too many abandoned carts.", text)
+        self.assertIn("## Why\n\nToo many abandoned carts.", text)
+        self.assertNotIn("## Milestones", text)
+        self.assertNotIn("## Blockers", text)
         self.assertNotIn("{{", text)
         self.assertNotIn(" \n", text)
         b = bets.parse_bet(os.path.join(self.v, "bets/Checkout redesign phase 1.md"))
         self.assertEqual(b["bet"], "Checkout redesign: phase 1")
-        self.assertEqual(len(b["milestones"]) + len(b["kpis"]) + len(b["readings"]) + len(b["signals"]), 4)
-        self.assertEqual(b["kpis"][0]["metric"], "Cart abandonment %")
+        self.assertEqual(b["status"], "in progress")
+        self.assertEqual(b["why"], "Too many abandoned carts.")
         self.assertEqual(bets.parse_bet(os.path.join(self.v, "bets/Run a half marathon.md"))["area"], "life")
 
     def test_never_overwrites(self):
@@ -277,7 +191,8 @@ class NewNotes(VaultCase):
 
     def test_rejects_bad_input(self):
         for item in ({"owner": "Sam"}, {"bet": "X", "area": "hobby"}, {"bet": "X", "cycle_end": "next week"},
-                     {"bet": "X", "outcome": "great"}):
+                     {"bet": "X", "outcome": "great"}, {"bet": "X", "status": "off-track"},
+                     {"bet": "X", "rating": "great"}):
             r = self.cli("new", stdin=json.dumps(item), ok=False)
             self.assertNotEqual(r.returncode, 0, item)
         self.assertFalse(os.path.exists(os.path.join(self.v, "bets/X.md")))
@@ -293,8 +208,8 @@ class NewNotes(VaultCase):
 class Appends(VaultCase):
     def setUp(self):
         super().setUp()
-        self.new({"bet": "Alpha", "owner": "Sam", "cycle_start": "2026-11-02", "cycle_end": "2026-12-11",
-                  "kpis": [{"metric": "Repeat tickets", "baseline": "40", "target": "25", "read_by": "2026-12-18"}]})
+        self.new({"bet": "Alpha", "owner": "Sam", "cycle_start": "2026-11-02", "cycle_end": "2026-12-11"})
+        self.cli("kpi", "Alpha", "Repeat tickets", "--baseline", "40", "--target", "25", "--read-by", "2026-12-18")
 
     def test_signal_blocker_milestone_tick_reading(self):
         self.assertEqual(self.cli("signal", "Alpha", "Kickoff done", "--date", "2026-11-03").stdout.strip(), "added")
@@ -359,25 +274,23 @@ class Score(VaultCase):
              "started": "2026-11-01", "signals": [{"date": "2026-11-22", "text": "10 km"}]},
         )
 
-    def test_score_writes_fields_and_radar(self):
+    def test_score_groups_by_status_and_does_not_rewrite_it(self):
+        self.cli("set", "Alpha", "status=paused")
+        self.cli("set", "Beta", "status=done", "rating=lost")
+        before = self.read("bets/Alpha.md")
         out = json.loads(self.cli("score", "--today", "2026-11-23").stdout)
         self.assertEqual(out["bets"], 5)
-        self.assertEqual(out["status"]["off-track"], 1)
-        self.assertEqual(out["status"]["shipped"], 2)
-        self.assertEqual(out["notes_updated"], 5)
-        beta = self.read("bets/Beta.md")
-        self.assertIn("status: off-track", beta)
-        self.assertIn('status_reason: milestone "Pilot" was due Nov 20, 2026', beta)
-        self.assertIn("kpi_result: hit", self.read("bets/Delta.md"))
-        self.assertIn("delivery: late", self.read("bets/Delta.md"))
+        self.assertEqual(out["notes_updated"], 0)
+        self.assertEqual(out["status"]["paused"], 1)
+        self.assertEqual(out["status"]["done"], 1)
+        self.assertEqual(self.read("bets/Alpha.md"), before)
+        self.assertIn("status: paused", self.read("bets/Alpha.md"))
         radar = self.read("bets/Bet Radar.md")
-        self.assertIn("| [[Beta]] | Alex | 🔴 off track |", radar)
-        self.assertIn("Get the KPI reading: Tickets (due Nov 15, 2026) (8 days overdue) · [[Gamma]]", radar)
-        self.assertIn("| Shipped on time | · | · | · | 1 | · | 1 |", radar)
-        self.assertIn("| Shipped late | 1 | · | · | · | · | 1 |", radar)
-        self.assertIn("Shipped on time: 1 of 2. Outcome hit: 1 of 1 with a result. 1 still have no result.", radar)
+        self.assertIn("## Paused", radar)
+        self.assertIn("| [[Alpha]] | Sam | — |", radar)
+        self.assertIn("| [[Beta]] | Alex | lost |", radar)
+        self.assertNotIn("Rate this bet", radar)
         self.assertIn("```dataview", radar)
-        # The radar itself is not read as a bet.
         self.assertEqual(len(json.loads(self.cli("list", "--today", "2026-11-23").stdout)), 5)
 
     def test_second_run_changes_nothing(self):
@@ -401,20 +314,23 @@ class Score(VaultCase):
         self.assertNotIn("[[Alpha]]", radar)
         self.assertIn('WHERE type = "bet" AND area = "life"', radar)
 
-    def test_thresholds_from_config_and_flags(self):
-        self.new({"bet": "Quiet", "owner": "Sam", "cycle_start": "2026-11-02", "cycle_end": "2026-12-31",
-                  "started": "2026-11-03", "signals": [{"date": "2026-11-13", "text": "x"}]})
-        quiet = lambda *a: next(b for b in json.loads(self.cli("list", "--today", "2026-11-23", *a).stdout) if b["bet"] == "Quiet")["status"]
-        self.assertEqual(quiet(), "stalled")
-        with open(os.path.join(self.v, "bets", "bets-config.json"), "w") as f:
-            json.dump({"stale_days": 14}, f)
-        self.assertEqual(quiet(), "on-track")
-        self.assertEqual(quiet("--stale-days", "5"), "stalled")
+    def test_score_leaves_an_old_status_word_unset(self):
+        with open(os.path.join(self.v, "bets/Alpha.md"), encoding="utf-8") as f:
+            text = f.read()
+        text = text.replace("status: in progress", "status: off-track")
+        with open(os.path.join(self.v, "bets/Alpha.md"), "w", encoding="utf-8") as f:
+            f.write(text)
+        self.cli("score", "--today", "2026-11-23")
+        self.assertIn("status: off-track", self.read("bets/Alpha.md"))
+        radar = self.read("bets/Bet Radar.md")
+        self.assertIn("## Not set", radar)
+        self.assertIn("[[Alpha]]", radar.split("## Not set", 1)[1])
 
     def test_follow_ups_json(self):
+        self.cli("set", "Gamma", "status=done")
         fus = json.loads(self.cli("follow-ups", "--today", "2026-11-23").stdout)
         self.assertEqual([(f["owner"], f["kind"], f["bet"]) for f in fus],
-                         [("Alex", "off-track", "Beta"), ("Alex", "kpi-reading", "Gamma")])
+                         [("Alex", "rating", "Gamma")])
 
 
 class Frontmatter(unittest.TestCase):

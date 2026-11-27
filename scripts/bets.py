@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Deterministic helpers for the vault-os bets skill.
 
-A bet is a piece of work someone committed to for a cycle (a Shape Up bet,
-a quarter goal, a personal project). Each bet is one note in the vault's
-bets/ folder. The agent talks to the user and decides what to record; this
-script does the parts that must not drift: creating notes from the template,
-appending signals, blockers, milestones, KPIs and readings in a fixed format,
-and setting each bet's status by fixed rules, not by model judgment.
+A bet is one note in the vault's bets/ folder. The person who owns the bet
+sets its status (in progress, paused, or done) and, when they choose, a
+rating (won, lost, or push). This script creates notes from the template,
+records those two fields, and rewrites the radar. It does not decide whether
+a bet is done, and it does not rate one.
 Standard library only.
 
 The vault is --vault, else $VAULT_OS_VAULT_ROOT, else the current directory.
@@ -21,12 +20,12 @@ Usage:
   bets.py tick FILE MATCH [--date D]  (tick the one open milestone or blocker containing MATCH)
   bets.py kpi FILE METRIC --target T [--baseline B] [--read-by D] [--direction up|down]
   bets.py reading FILE METRIC VALUE [--date D]
-  bets.py set FILE key=value ...      (owner, area, cycle, appetite, cycle_start, cycle_end,
-                                       started, shipped, dropped, outcome)
-  bets.py list [--today D]            (JSON: every bet, parsed and scored)
+  bets.py set FILE key=value ...      (owner, area, cycle, status, rating, why, value, and the
+                                       older cycle fields still on existing notes)
+  bets.py list [--today D]            (JSON: every bet)
   bets.py follow-ups [--today D]      (JSON: asks for each owner)
   bets.py score [--today D] [--area work|life] [--out NOTE]
-                                      (write status fields to each bet and the radar note)
+                                      (rewrite the radar from the status and rating already on each note)
 
 Thresholds (days, on list, follow-ups and score): --blocker-days 7, --stale-days 7,
 --warn-days 14, or set them
@@ -53,14 +52,15 @@ TEMPLATE = "templates/bet.md"
 BUNDLED_TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "skills", "bets", "templates", "bet.md")
 
 # Frontmatter the user (or the agent, on the user's word) owns.
-USER_FIELDS = ["bet", "owner", "area", "cycle", "appetite", "cycle_start", "cycle_end",
-               "started", "shipped", "dropped", "outcome", "source"]
+USER_FIELDS = ["bet", "owner", "area", "cycle", "status", "rating", "why", "value",
+               "appetite", "cycle_start", "cycle_end", "started", "shipped", "dropped",
+               "outcome", "source"]
 DATE_FIELDS = {"cycle_start", "cycle_end", "started", "shipped", "dropped"}
 SETTABLE = [f for f in USER_FIELDS if f not in ("bet", "source")]
-# Frontmatter only `score` writes.
-SCORE_FIELDS = ["status", "status_reason", "delivery", "kpi_result", "last_signal"]
 
 AREAS = ("work", "life")
+STATUSES = ("in progress", "paused", "done")
+RATINGS = ("won", "lost", "push")
 OUTCOMES = ("hit", "partial", "missed")
 CALLS = ("off-track", "on-track")
 
@@ -413,28 +413,11 @@ def evaluate(rules, item, ctx, default=("on-track", "")) -> tuple[str, str]:
 
 
 def score_bet(bet: dict, today: dt.date, t: Thresholds) -> dict:
-    ctx = {"today": today, "t": t}
-    deliv = delivery(bet, today)
-    if deliv == "dropped":
-        status, reason = "dropped", f"dropped {short(to_date(bet['dropped']))}"
-    elif deliv in ("on-time", "late"):
-        status, reason = "shipped", f"shipped {short(to_date(bet['shipped']))}" + (" (late)" if deliv == "late" else "")
-    elif deliv == "upcoming" and bet["owner"].strip():
-        status, reason = "upcoming", f"cycle starts {short(to_date(bet['cycle_start']))}"
-    else:
-        status, reason = evaluate(ACTIVE_RULES, bet, ctx)
-    kpis = [kpi_result(k, bet["readings"]) for k in bet["kpis"]]
-    computed = combine_results([k["result"] for k in kpis if k["result"] != "no-target"]) if kpis else "no-kpi"
-    users = bet["outcome"].strip().lower()
-    s = last_signal(bet)
+    """Read the status and rating the user wrote. Do not invent either."""
     return {
         **bet,
-        "status": status, "status_reason": reason, "delivery": deliv,
-        "kpi_results": kpis, "kpi_result": computed,
-        "final_outcome": users if users in OUTCOMES else computed,
-        "outcome_by": "user" if users in OUTCOMES else "kpi",
-        "last_signal": s["date"] if s else "",
-        "next_date": _next_date(bet, today),
+        "status": _canon(bet.get("status"), STATUSES),
+        "rating": _canon(bet.get("rating"), RATINGS),
     }
 
 
@@ -445,34 +428,22 @@ def _next_date(bet: dict, today: dt.date) -> str:
 
 
 def follow_ups(scored: list[dict], today: dt.date, t: Thresholds) -> list[dict]:
-    """What to ask whom. One entry per ask, named to the bet's owner."""
+    """What to ask whom. Status and rating are the user's to set."""
     out = []
     for b in scored:
         owner = b["owner"].strip() or "(no owner)"
 
-        def ask(kind, text, due=None):
+        def ask(kind, text):
             out.append({"owner": owner, "bet": b["bet"], "note": b["note"], "kind": kind, "ask": text,
-                        "days_overdue": (today - to_date(due)).days if due else None})
+                        "days_overdue": None})
 
-        if b["status"] == "dropped":
-            continue
         if not b["owner"].strip():
             ask("owner", "Name an owner for this bet")
-        for k in b["kpi_results"]:
-            due = to_date(k["read_by"])
-            if due and due <= today and not (k["read_on"] and to_date(k["read_on"]) >= due):
-                ask("kpi-reading", f"Get the KPI reading: {k['metric']} (due {short(due)})", k["read_by"])
-        if b["status"] in ("dropped", "shipped", "upcoming"):
-            continue
-        if b["status"] == "off-track":
-            ask("off-track", f"Agree a scope cut, a new date or a stop: {b['status_reason']}")
-        for x in b["blockers"]:
-            opened = to_date(x["opened"])
-            if x["open"] and opened and (today - opened).days >= t.blocker_days:
-                ask("blocker", f"Ask what clears the blocker: {x['text']}")
-        if b["status"] == "stalled" and b["owner"].strip():
-            ask("update", f"Ask for an update ({b['status_reason']})")
-    order = {"owner": 0, "off-track": 1, "kpi-reading": 2, "blocker": 3, "update": 4}
+        if not b["status"]:
+            ask("status", "Set the status: in progress, paused, or done")
+        elif b["status"] == "done" and not b["rating"]:
+            ask("rating", "Rate this bet: won, lost, or push")
+    order = {"owner": 0, "status": 1, "rating": 2}
     out.sort(key=lambda f: (f["owner"].lower(), order[f["kind"]], f["bet"].lower()))
     return out
 
@@ -483,18 +454,28 @@ def render_bet(template: str, bet: dict) -> str:
     def lines(kind: str) -> str:
         return "\n".join(LINE_FORMATS[kind](x) for x in bet.get(LIST_KEYS[kind]) or [])
 
-    values = {k: yaml_value(bet.get(k)) for k in USER_FIELDS}
-    values["area"] = values["area"] or "work"
-    body = template
-    for k, v in values.items():
+    if template.startswith("---\n") and "\n---\n" in template[4:]:
+        fm, body = template[4:].split("\n---\n", 1)
+        fm_prefix = "---\n"
+        fm_suffix = "\n---\n"
+    else:
+        fm, body = "", template
+        fm_prefix = fm_suffix = ""
+    yaml_map = {k: yaml_value(bet.get(k)) for k in USER_FIELDS}
+    yaml_map["area"] = yaml_map["area"] or "work"
+    raw_map = {k: "" if bet.get(k) is None else str(bet.get(k)).strip() for k in USER_FIELDS}
+    raw_map["area"] = raw_map["area"] or "work"
+    for k, v in yaml_map.items():
+        fm = fm.replace("{{" + k + "}}", v)
+    for k, v in raw_map.items():
         body = body.replace("{{" + k + "}}", v)
-    body = body.replace("{{problem}}", (bet.get("problem") or "").strip())
+    body = body.replace("{{problem}}", (bet.get("problem") or bet.get("why") or "").strip())
     for kind in LIST_KEYS:
         body = body.replace("{{" + LIST_KEYS[kind] + "}}", lines(kind))
-    # The heading carries the plain name, not its YAML-quoted form.
     body = re.sub(r"^# .*$", lambda _: f"# {bet['bet']}", body, count=1, flags=re.M)
-    body = re.sub(r"[ \t]+$", "", body, flags=re.M)
-    return re.sub(r"\n{3,}", "\n\n", body)
+    text = fm_prefix + fm + fm_suffix + body
+    text = re.sub(r"[ \t]+$", "", text, flags=re.M)
+    return re.sub(r"\n{3,}", "\n\n", text)
 
 
 def _milestone_line(m: dict) -> str:
@@ -542,16 +523,29 @@ def template_text(vault: str) -> str:
     return _read(own if os.path.exists(own) else BUNDLED_TEMPLATE)
 
 
+def _canon(value, allowed: tuple[str, ...]) -> str:
+    s = str(value or "").strip().lower()
+    return s if s in allowed else ""
+
+
 def validate_new(bet: dict) -> dict:
     if not isinstance(bet, dict) or not str(bet.get("bet") or "").strip():
         raise SystemExit("bets: each bet needs a \"bet\" name")
     bet = {**bet, "bet": str(bet["bet"]).strip()}
+    if not str(bet.get("why") or "").strip() and str(bet.get("problem") or "").strip():
+        bet["why"] = str(bet["problem"]).strip()
     for k in DATE_FIELDS:
         check_date(str(bet.get(k) or ""), k)
     if bet.get("area") and bet["area"] not in AREAS:
         raise SystemExit(f"bets: area must be one of {', '.join(AREAS)}")
     if bet.get("outcome") and bet["outcome"] not in OUTCOMES:
         raise SystemExit(f"bets: outcome must be one of {', '.join(OUTCOMES)}, or left out")
+    if str(bet.get("status") or "").strip() and not _canon(bet.get("status"), STATUSES):
+        raise SystemExit(f"bets: status must be one of {', '.join(STATUSES)}")
+    if str(bet.get("rating") or "").strip() and not _canon(bet.get("rating"), RATINGS):
+        raise SystemExit(f"bets: rating must be one of {', '.join(RATINGS)}, or left out")
+    bet["status"] = _canon(bet.get("status"), STATUSES) or "in progress"
+    bet["rating"] = _canon(bet.get("rating"), RATINGS)
     return bet
 
 
@@ -631,6 +625,14 @@ def cmd_set(path: str, pairs: list[str]) -> dict:
             raise SystemExit(f"bets: area must be one of {', '.join(AREAS)}")
         if k == "outcome" and v and v not in OUTCOMES:
             raise SystemExit(f"bets: outcome must be one of {', '.join(OUTCOMES)}, or empty")
+        if k == "status":
+            if v and not _canon(v, STATUSES):
+                raise SystemExit(f"bets: status must be one of {', '.join(STATUSES)}")
+            v = _canon(v, STATUSES)
+        if k == "rating":
+            if v and not _canon(v, RATINGS):
+                raise SystemExit(f"bets: rating must be one of {', '.join(RATINGS)}, or empty")
+            v = _canon(v, RATINGS)
         values[k] = v
     _write(path, write_fields(text, values))
     return values
@@ -643,11 +645,8 @@ def kpi_names(path: str) -> list[str]:
 
 # ---------- the radar note ----------
 
-STATUS_ORDER = ["off-track", "drifting", "stalled", "on-track", "upcoming", "shipped", "dropped"]
-STATUS_LABEL = {"off-track": "🔴 off track", "drifting": "🟠 drifting", "stalled": "🟡 stalled",
-                "on-track": "🟢 on track", "upcoming": "⚪ upcoming", "shipped": "✅ shipped", "dropped": "⚫ dropped"}
-DELIVERY_ROWS = [("on-time", "Shipped on time"), ("late", "Shipped late"), ("not-shipped", "Not shipped"), ("dropped", "Dropped")]
-OUTCOME_COLS = [("hit", "Hit"), ("partial", "Partial"), ("missed", "Missed"), ("not-read", "Not read"), ("no-kpi", "No KPI")]
+STATUS_ORDER = ["in progress", "paused", "done"]
+STATUS_LABEL = {"in progress": "In progress", "paused": "Paused", "done": "Done"}
 
 
 def _cell(s: str) -> str:
@@ -666,24 +665,39 @@ def _kpi_cell(b: dict) -> str:
     return "; ".join(parts) or "none set"
 
 
+def _bet_row(b: dict) -> str:
+    return (f"| {_link(b)} | {_cell(b['owner'] or '—')} | {b['rating'] or '—'} | {_cell(b.get('value') or '—')} |")
+
+
 def radar_text(scored: list[dict], fus: list[dict], today: dt.date, area: str | None) -> str:
-    counts = {s: sum(1 for b in scored if b["status"] == s) for s in STATUS_ORDER}
-    summary = " · ".join(f"{n} {STATUS_LABEL[s].split(' ', 1)[1]}" for s, n in counts.items() if n)
+    groups = {s: [b for b in scored if b["status"] == s] for s in STATUS_ORDER}
+    unset = [b for b in scored if not b["status"]]
+    counts = {s: len(groups[s]) for s in STATUS_ORDER}
+    summary = " · ".join(f"{n} {STATUS_LABEL[s].lower()}" for s, n in counts.items() if n)
+    if unset:
+        summary = (summary + " · " if summary else "") + f"{len(unset)} not set"
     scope = f" ({area})" if area else ""
     out = [
         "---", "type: bet-radar", f"updated: {today.isoformat()}", "---",
         f"# Bet Radar{scope}", "",
-        f"Written by `bets.py score` on {short(today)}. Each run rewrites this note; edit the bet notes instead.", "",
+        f"Written by `bets.py score` on {short(today)}. Each run rewrites this note. Status and rating are set on the bet notes.", "",
         f"**{len(scored)} bets** · {summary or 'none yet'}", "",
     ]
-    attention = sorted((b for b in scored if b["status"] in ("off-track", "drifting", "stalled")),
-                       key=lambda b: (STATUS_ORDER.index(b["status"]), b["bet"].lower()))
-    out += ["## Needs attention", ""]
-    if attention:
-        out += ["| Bet | Owner | Status | Why |", "|---|---|---|---|"]
-        out += [f"| {_link(b)} | {_cell(b['owner'] or '—')} | {STATUS_LABEL[b['status']]} | {_cell(b['status_reason'])} |" for b in attention]
+    for s in STATUS_ORDER:
+        rows = sorted(groups[s], key=lambda b: b["bet"].lower())
+        out += [f"## {STATUS_LABEL[s]}", ""]
+        if rows:
+            out += ["| Bet | Owner | Rating | Value |", "|---|---|---|---|"]
+            out += [_bet_row(b) for b in rows]
+        else:
+            out.append("None.")
+        out.append("")
+    out += ["## Not set", ""]
+    if unset:
+        out += ["| Bet | Owner | Rating | Value |", "|---|---|---|---|"]
+        out += [_bet_row(b) for b in sorted(unset, key=lambda b: b["bet"].lower())]
     else:
-        out.append("Nothing. Every active bet is on track.")
+        out.append("None.")
     out += ["", "## Follow-ups", ""]
     if fus:
         owner = None
@@ -691,79 +705,34 @@ def radar_text(scored: list[dict], fus: list[dict], today: dt.date, area: str | 
             if f["owner"] != owner:
                 owner = f["owner"]
                 out += ([""] if out[-1] else []) + [f"**{_cell(owner)}**"]
-            late = f" ({f['days_overdue']} days overdue)" if f.get("days_overdue") else ""
-            out.append(f"- {_cell(f['ask'])}{late} · [[{f['note']}]]")
+            out.append(f"- {_cell(f['ask'])} · [[{f['note']}]]")
     else:
         out.append("None.")
-    active = [b for b in scored if b["status"] in ("off-track", "drifting", "stalled", "on-track", "upcoming")]
-    active.sort(key=lambda b: (STATUS_ORDER.index(b["status"]), b["cycle_end"] or "9999", b["bet"].lower()))
-    out += ["", "## Active bets", ""]
-    if active:
-        out += ["| Bet | Owner | Area | Cycle ends | Next date | Status | Last signal |", "|---|---|---|---|---|---|---|"]
-        out += [f"| {_link(b)} | {_cell(b['owner'] or '—')} | {b['area'] or 'work'} | {short(to_date(b['cycle_end'])) or '—'} | "
-                f"{short(to_date(b['next_date'])) or '—'} | {STATUS_LABEL[b['status']]} | {short(to_date(b['last_signal'])) or '—'} |" for b in active]
-    else:
-        out.append("No active bets.")
-    finished = [b for b in scored if b["delivery"] in dict(DELIVERY_ROWS)]
-    out += ["", "## Scorecard", "",
-            "Bets whose cycle is over: did they ship, and did the KPI move? Outcome is the user's call when set, otherwise the KPI's.", ""]
-    if finished:
-        out += ["| Delivery \\ Outcome | " + " | ".join(lbl for _, lbl in OUTCOME_COLS) + " | Total |",
-                "|---|" + "---|" * (len(OUTCOME_COLS) + 1)]
-        for key, lbl in DELIVERY_ROWS:
-            row = [sum(1 for b in finished if b["delivery"] == key and b["final_outcome"] == o) for o, _ in OUTCOME_COLS]
-            if sum(row):
-                out.append(f"| {lbl} | " + " | ".join(str(n) if n else "·" for n in row) + f" | {sum(row)} |")
-        shipped = [b for b in finished if b["delivery"] in ("on-time", "late")]
-        on_time = sum(1 for b in shipped if b["delivery"] == "on-time")
-        read = [b for b in finished if b["final_outcome"] in OUTCOMES]
-        hits = sum(1 for b in read if b["final_outcome"] == "hit")
-        out += ["",
-                f"Shipped on time: {on_time} of {len(finished)}. "
-                f"Outcome hit: {hits} of {len(read)} with a result."
-                + (f" {len(finished) - len(read)} still have no result." if len(finished) > len(read) else ""),
-                "",
-                "| Bet | Owner | Cycle | Delivery | Outcome | KPI |", "|---|---|---|---|---|---|"]
-        finished.sort(key=lambda b: (b["cycle_end"] or "", b["bet"].lower()), reverse=True)
-        for b in finished:
-            outcome = b["final_outcome"] + (" (owner's call)" if b["outcome_by"] == "user" else "")
-            out.append(f"| {_link(b)} | {_cell(b['owner'] or '—')} | {_cell(b['cycle'] or short(to_date(b['cycle_end'])) or '—')} | "
-                       f"{b['delivery']} | {outcome} | {_cell(_kpi_cell(b))} |")
-    else:
-        out.append("No finished bets yet.")
     where = f'"{BETS_DIR}"'
     area_filter = f' AND area = "{area}"' if area else ""
     out += ["", "## Live view", "",
-            "Dataview reads the status fields this script wrote into each bet note.", "",
+            "Dataview reads the status and rating on each bet note.", "",
             "```dataview",
-            'TABLE WITHOUT ID file.link AS "Bet", owner AS "Owner", status AS "Status", status_reason AS "Why", '
-            'delivery AS "Delivery", default(outcome, kpi_result) AS "Outcome"',
+            'TABLE WITHOUT ID file.link AS "Bet", owner AS "Owner", status AS "Status", rating AS "Rating", value AS "Value"',
             f'FROM {where}',
             f'WHERE type = "bet"{area_filter}',
-            "SORT status ASC, cycle_end ASC",
+            "SORT status ASC, file.name ASC",
             "```", ""]
     return "\n".join(out)
 
 
 def cmd_score(vault: str, today: dt.date, t: Thresholds, area: str | None, out_rel: str | None) -> dict:
     scored = [score_bet(b, today, t) for b in all_bets(vault)]
-    changed = 0
-    for b in scored:
-        text = _read(b["file"])
-        fm = read_frontmatter(text)
-        values = {k: b[k] for k in SCORE_FIELDS}
-        if any(str(fm.get(k, "")) != str(v) for k, v in values.items()):
-            _write(b["file"], write_fields(text, values))
-            changed += 1
     shown = [b for b in scored if not area or (b["area"] or "work") == area]
     fus = follow_ups(shown, today, t)
     rel = out_rel or os.path.join(BETS_DIR, RADAR_NOTE)
     path = os.path.join(vault, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     _write(path, radar_text(shown, fus, today, area))
-    return {"date": today.isoformat(), "radar": rel, "bets": len(shown), "notes_updated": changed,
-            "status": {s: sum(1 for b in shown if b["status"] == s) for s in STATUS_ORDER},
-            "follow_ups": len(fus)}
+    counts = {s: sum(1 for b in shown if b["status"] == s) for s in STATUS_ORDER}
+    counts["not set"] = sum(1 for b in shown if not b["status"])
+    return {"date": today.isoformat(), "radar": rel, "bets": len(shown), "notes_updated": 0,
+            "status": counts, "follow_ups": len(fus)}
 
 
 def public(b: dict) -> dict:

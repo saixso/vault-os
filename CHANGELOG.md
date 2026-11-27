@@ -4,6 +4,12 @@ All notable changes to vault-os and upstream claude-obsidian. Format: [Keep a Ch
 
 ## [Unreleased]
 
+### Changed
+
+- **bets.** A bet note is now a claim, a why, a value, a status, and a rating. Status is `in progress`, `paused`, or `done`, and the user sets it. Rating is `won`, `lost`, or `push`, and it stays blank until the user rates the bet. `score` rewrites the radar from those fields and does not decide either one. A cycle end no longer marks a bet off track.
+
+
+
 ## [2.6.0] - 2026-11-23
 
 ### Added

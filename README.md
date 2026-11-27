@@ -29,7 +29,7 @@ Supporting core skills: `defuddle`, `canvas`, `obsidian-markdown`, `obsidian-bas
 
 - **publish / feature-request** — maintainer tooling for this repo.
 - **planner** (`daily-planner`, `weekly-planner`, `monthly-planner`) — daily, weekly and monthly notes filled from calendar, meeting notes and mail: next-day prep, a ranked top 3, promises kept, decisions and how they paid off. Needs those connectors and the planner templates. See [docs/planner.md](docs/planner.md).
-- **bets** — one note per bet (Shape Up bet, quarter goal or personal project) with an owner, milestones, a KPI and dated signals. `scripts/bets.py` scores each bet by fixed rules (on track, drifting, stalled, off track) and writes a Bet Radar: what needs attention, follow-ups per owner, delivery vs outcome. `/bets backfill` interviews you to log past bets. See [docs/bets.md](docs/bets.md).
+- **bets** — one note per bet with an owner, a why, and a value. You set the status (`in progress`, `paused`, or `done`) and the rating (`won`, `lost`, or `push`). `scripts/bets.py` rewrites a Bet Radar grouped by those three statuses. `/bets backfill` interviews you to log past bets. See [docs/bets.md](docs/bets.md).
 
 ### Dormant / advanced (shipped, not the daily path)
 

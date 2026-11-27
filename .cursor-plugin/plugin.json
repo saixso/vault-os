@@ -2,7 +2,7 @@
   "name": "vault-os",
   "displayName": "vault-os",
   "description": "Persistent, compounding Obsidian wiki vault for AI agents. Skills for ingest, query, lint, and hot-sync.",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "author": {
     "name": "saixso",
     "url": "https://github.com/saixso"
