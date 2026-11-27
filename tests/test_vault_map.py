@@ -183,7 +183,8 @@ class Outputs(Base):
         s = build.summary(self.d)
         self.assertTrue(s.startswith("Vault map, turn Mar 2026"))
         self.assertIn("Bets shipped: 1", s)
-        self.assertIn("Fog: 1 problems", s)
+        self.assertIn("Fog: 1 problem with no idea", s)
+        self.assertIn("Unexplored routes: ", s)
 
     def test_html_embeds_data_safely(self):
         self.d["frontier"][0]["name"] = "</script><b>x"

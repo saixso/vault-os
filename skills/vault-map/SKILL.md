@@ -62,7 +62,7 @@ Note text is never read for meaning, printed or copied: only link targets.
 1. `M --json VAULT/dashboards/vault-map.json --html VAULT/dashboards/vault-map.html --summary`.
    Ask before the first write to the vault; later refreshes can rewrite the same two files.
 2. Tell the user where the page is and give the turn report in a few lines:
-   what grew, ideas formed, bets started and shipped, the top route, the fog count.
+   what grew, ideas formed, bets started and shipped, the top unexplored route, the fog count.
 3. Commit the two files only if the user's vault rules say generated files are
    committed. Never commit anything else with them.
 

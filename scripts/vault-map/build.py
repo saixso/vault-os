@@ -504,9 +504,10 @@ def summary(data: dict) -> str:
     if data["unlocks"]:
         name = {t["id"]: t["name"] for t in data["territories"]}
         u = "; ".join(f"{name[x['a']]} and {name[x['b']]} ({x['links']} links)" for x in data["unlocks"][:3])
-        lines.append(f"- Unexplored borders: {u}.")
+        lines.append(f"- Unexplored routes: {u}.")
     if data["fog"]:
-        lines.append(f"- Fog: {len(data['fog'])} problems with no idea yet.")
+        n = len(data["fog"])
+        lines.append(f"- Fog: {n} problem{'' if n == 1 else 's'} with no idea yet.")
     if k in data["spikes"]:
         lines.append("- This turn's concept count is a spike, likely one import rather than steady growth.")
     return "\n".join(lines) + "\n"
