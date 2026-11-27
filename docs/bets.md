@@ -39,13 +39,16 @@ A minimal `my-bets.json`:
     "value": "Days to first use, from 6.",
     "odds": 60,
     "wrong_if": "Days to first use is still above 4 after a full cycle.",
+    "stake": "medium",
+    "stake_note": "One cycle of two engineers.",
     "status": "in progress"
   }
 ]
 ```
 
 Status is `in progress`, `paused`, or `done`. If `status` is left out, a new
-note starts at `in progress`. Odds is a whole percent from 0 to 100 (`60%` and
+note starts at `in progress`. Stake is `small`, `medium`, or `large`, with
+`stake_note` for what would be lost. Odds is a whole percent from 0 to 100 (`60%` and
 `0.6` become `60`). Decision is `good` or `bad`, and rating is `won`, `lost`,
 or `push`; both stay blank until someone sets them. An existing note is never
 overwritten by `new`.
@@ -56,7 +59,7 @@ writes it somewhere else.
 ## The radar note
 
 Four groups: In progress, Paused, Done, Not set. Each row is the bet, the
-owner, the odds, the decision, the rating, and the value.
+owner, the odds, the stake, the decision, the rating, and the value.
 
 - **Decision against result:** done bets in a grid of decision (good, bad) by
   result (won, push, lost). A good call that lost is bad luck; a bad call that
@@ -64,8 +67,10 @@ owner, the odds, the decision, the rating, and the value.
 - **Odds against results:** the average odds of done bets with a won or lost
   result, against how many won. Odds well above the win rate means the bets
   were called with too much confidence.
-- **Follow-ups:** a missing owner or status; odds or "proved wrong if" on a bet
-  in progress; a decision or result rating on a bet marked done.
+- **Results by stake:** win rate and average odds for small, medium and large
+  bets, so big bets are judged apart from small ones.
+- **Follow-ups:** a missing owner or status; odds, "proved wrong if" or the
+  stake on a bet in progress; a decision or result rating on a bet marked done.
 - **Live view:** two Dataview blocks with the same fields.
 
 ## Test

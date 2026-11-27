@@ -7,7 +7,7 @@ Read the `bets` skill and its `references/bet-contract.md`. Then run the flow th
 Usage:
 - `/bets` — rewrite the radar and summarize it by status
 - `/bets backfill` — interview me about bets already made and create a note for each
-- `/bets new` — ask me about the bet one question at a time (what, owner, why, expected value, odds, what would prove it wrong), then write my answers to a new note
+- `/bets new` — ask me about the bet one question at a time (what, owner, why, expected value, odds, what would prove it wrong, what is at stake), then write my answers to a new note
 - `/bets close` — ask me one question at a time to close a bet: the result (won, lost, push), then the decision (good, bad) apart from the result, and write my answers to the note
 - `/bets life` — the radar for personal bets only (`--area life`)
 

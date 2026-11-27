@@ -26,13 +26,15 @@ The shape of a bet note, and who writes what. The `bets` skill and
 | `status` | user | `in progress`, `paused`, or `done` |
 | `odds` | user | How likely the user thinks the bet is to work, a whole percent from 0 to 100. Written when the bet is placed. `60%` and `0.6` are stored as `60` |
 | `wrong_if` | user | What would prove the bet wrong. Written when the bet is placed |
+| `stake` | user | `small`, `medium`, or `large`: how much the bet risks. Written when the bet is placed |
+| `stake_note` | user | What would be lost if the bet fails, in the user's words |
 | `decision` | user | `good` or `bad`: the decision judged on what was known when the bet was placed, not on how it turned out. Blank until the user rates it |
 | `rating` | user | The result: `won`, `lost`, or `push`. Blank until the user rates it |
 | `why` | user | Why the bet was placed |
 | `value` | user | The business number that says whether it paid off. Blank if there is no number yet |
 | `source` | agent | `backfill` for notes made from memory |
 
-`score` reads `status`, `odds`, `decision` and `rating`. It does not write them.
+`score` reads `status`, `odds`, `stake`, `decision` and `rating`. It does not write them.
 
 The decision and the result are two ratings, not one. A good decision can
 lose and a bad one can win, so neither is ever filled in from the other.
@@ -51,6 +53,10 @@ shows on the radar as not set. The note is left as it is until the user sets one
 
 {{wrong_if}}
 
+## At stake
+
+{{at_stake}}
+
 ## Value
 
 {{value}}
@@ -58,13 +64,17 @@ shows on the radar as not set. The note is left as it is until the user sets one
 ## Notes
 ```
 
+`{{at_stake}}` is the stake and the stake note joined as `large: what you
+would lose`, or just the one that is set.
+
 ## Follow-ups
 
 Each names the bet's owner:
 
 - no owner: name one
 - status is not one of the three: set in progress, paused, or done
-- status is in progress and odds or wrong_if is blank: write both. Not asked
+- status is in progress and odds or wrong_if is blank: write both; once both
+  are there and stake is blank: say what is at stake. Not asked
   once a bet is paused or done, because odds written after the result only
   record hindsight
 - status is done and rating or decision is blank: rate whichever is missing,
@@ -83,5 +93,8 @@ Under that:
 - **Odds against results.** For done bets with odds and a won or lost result:
   the average odds and the share that won. Under 10 bets, the radar says the
   gap says little yet.
+- **Results by stake.** For each stake with done bets that won or lost: how
+  many, how many won, and the average odds. A large bet needs better odds
+  than a small one, so the large row is the one to watch.
 - **Follow-ups**, then two Dataview blocks: every bet with these fields, and
   done bets grouped by decision and result.

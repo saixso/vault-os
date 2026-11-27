@@ -4,7 +4,8 @@
 A bet is one note in the vault's bets/ folder. The person who owns the bet
 sets its status (in progress, paused, or done) and, when they choose, a
 rating (won, lost, or push). Following Thinking in Bets, they also write the
-odds they give the bet and what would prove it wrong when they place it, and
+odds they give the bet, what would prove it wrong and what is at stake
+(small, medium, or large, and what they would lose) when they place it, and
 at the close they rate the decision (good or bad) apart from the result.
 This script creates notes from the template, records those fields, and
 rewrites the radar. It does not decide whether a bet is done, and it does not
@@ -24,7 +25,7 @@ Usage:
   bets.py kpi FILE METRIC --target T [--baseline B] [--read-by D] [--direction up|down]
   bets.py reading FILE METRIC VALUE [--date D]
   bets.py set FILE key=value ...      (owner, area, cycle, status, rating, why, value, odds,
-                                       wrong_if, decision, and the
+                                       wrong_if, stake, stake_note, decision, and the
                                        older cycle fields still on existing notes)
   bets.py list [--today D]            (JSON: every bet)
   bets.py follow-ups [--today D]      (JSON: asks for each owner)
@@ -57,7 +58,7 @@ BUNDLED_TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 # Frontmatter the user (or the agent, on the user's word) owns.
 USER_FIELDS = ["bet", "owner", "area", "cycle", "status", "rating", "why", "value",
-               "odds", "wrong_if", "decision",
+               "odds", "wrong_if", "stake", "stake_note", "decision",
                "appetite", "cycle_start", "cycle_end", "started", "shipped", "dropped",
                "outcome", "source"]
 DATE_FIELDS = {"cycle_start", "cycle_end", "started", "shipped", "dropped"}
@@ -67,6 +68,7 @@ AREAS = ("work", "life")
 STATUSES = ("in progress", "paused", "done")
 RATINGS = ("won", "lost", "push")
 DECISIONS = ("good", "bad")
+STAKES = ("small", "medium", "large")
 OUTCOMES = ("hit", "partial", "missed")
 CALLS = ("off-track", "on-track")
 
@@ -426,6 +428,7 @@ def score_bet(bet: dict, today: dt.date, t: Thresholds) -> dict:
         "status": _canon(bet.get("status"), STATUSES),
         "rating": _canon(bet.get("rating"), RATINGS),
         "decision": _canon(bet.get("decision"), DECISIONS),
+        "stake": _canon(bet.get("stake"), STAKES),
         "odds": "" if odds is None else odds,
     }
 
@@ -454,13 +457,15 @@ def follow_ups(scored: list[dict], today: dt.date, t: Thresholds) -> list[dict]:
             ask("status", "Set the status: in progress, paused, or done")
         elif b["status"] == "in progress" and (b["odds"] == "" or not str(b.get("wrong_if") or "").strip()):
             ask("odds", "Write the odds you give it and what would prove it wrong")
+        elif b["status"] == "in progress" and not b["stake"]:
+            ask("stake", "Say what is at stake: small, medium, or large, and what you would lose")
         elif b["status"] == "done" and not b["rating"] and not b["decision"]:
             ask("rating", "Rate the result (won, lost, or push) and, apart from it, the decision (good or bad)")
         elif b["status"] == "done" and not b["rating"]:
             ask("rating", "Rate the result: won, lost, or push")
         elif b["status"] == "done" and not b["decision"]:
             ask("decision", "Rate the decision as it was made, apart from the result: good or bad")
-    order = {"owner": 0, "status": 1, "odds": 2, "rating": 3, "decision": 4}
+    order = {"owner": 0, "status": 1, "odds": 2, "stake": 3, "rating": 4, "decision": 5}
     out.sort(key=lambda f: (f["owner"].lower(), order[f["kind"]], f["bet"].lower()))
     return out
 
@@ -487,6 +492,8 @@ def render_bet(template: str, bet: dict) -> str:
     for k, v in raw_map.items():
         body = body.replace("{{" + k + "}}", v)
     body = body.replace("{{problem}}", (bet.get("problem") or bet.get("why") or "").strip())
+    at_stake = [str(bet.get(k) or "").strip() for k in ("stake", "stake_note")]
+    body = body.replace("{{at_stake}}", ": ".join(x for x in at_stake if x))
     for kind in LIST_KEYS:
         body = body.replace("{{" + LIST_KEYS[kind] + "}}", lines(kind))
     body = re.sub(r"^# .*$", lambda _: f"# {bet['bet']}", body, count=1, flags=re.M)
@@ -586,7 +593,10 @@ def validate_new(bet: dict) -> dict:
         raise SystemExit(f"bets: decision must be one of {', '.join(DECISIONS)}, or left out")
     bet["status"] = _canon(bet.get("status"), STATUSES) or "in progress"
     bet["rating"] = _canon(bet.get("rating"), RATINGS)
+    if str(bet.get("stake") or "").strip() and not _canon(bet.get("stake"), STAKES):
+        raise SystemExit(f"bets: stake must be one of {', '.join(STAKES)}, or left out")
     bet["decision"] = _canon(bet.get("decision"), DECISIONS)
+    bet["stake"] = _canon(bet.get("stake"), STAKES)
     bet["odds"] = check_odds(bet.get("odds"))
     return bet
 
@@ -679,6 +689,10 @@ def cmd_set(path: str, pairs: list[str]) -> dict:
             if v and not _canon(v, DECISIONS):
                 raise SystemExit(f"bets: decision must be one of {', '.join(DECISIONS)}, or empty")
             v = _canon(v, DECISIONS)
+        if k == "stake":
+            if v and not _canon(v, STAKES):
+                raise SystemExit(f"bets: stake must be one of {', '.join(STAKES)}, or empty")
+            v = _canon(v, STAKES)
         if k == "odds":
             v = check_odds(v)
         values[k] = v
@@ -717,12 +731,12 @@ def _odds_cell(b: dict) -> str:
     return f"{b['odds']}%" if b.get("odds") != "" and b.get("odds") is not None else "—"
 
 
-ROW_HEAD = ["| Bet | Owner | Odds | Decision | Rating | Value |", "|---|---|---|---|---|---|"]
+ROW_HEAD = ["| Bet | Owner | Odds | Stake | Decision | Rating | Value |", "|---|---|---|---|---|---|---|"]
 
 
 def _bet_row(b: dict) -> str:
-    return (f"| {_link(b)} | {_cell(b['owner'] or '—')} | {_odds_cell(b)} | {b.get('decision') or '—'} "
-            f"| {b['rating'] or '—'} | {_cell(b.get('value') or '—')} |")
+    return (f"| {_link(b)} | {_cell(b['owner'] or '—')} | {_odds_cell(b)} | {b.get('stake') or '—'} "
+            f"| {b.get('decision') or '—'} | {b['rating'] or '—'} | {_cell(b.get('value') or '—')} |")
 
 
 GRID_RESULTS = ["won", "push", "lost"]
@@ -765,6 +779,34 @@ def calibration(done: list[dict]) -> dict | None:
     return {"bets": len(rows), "average_odds": round(avg), "won": won, "win_rate": round(100 * won / len(rows))}
 
 
+def by_stake(done: list[dict]) -> dict:
+    """For each stake, done bets with a won or lost result: how many, how many won, and
+    the average odds where given. A push counts toward neither. Stakes with no such bet are left out."""
+    out = {}
+    for st in STAKES:
+        rows = [b for b in done if b["stake"] == st and b["rating"] in ("won", "lost")]
+        if not rows:
+            continue
+        won = sum(1 for b in rows if b["rating"] == "won")
+        odds = [b["odds"] for b in rows if b["odds"] != ""]
+        out[st] = {"bets": len(rows), "won": won, "win_rate": round(100 * won / len(rows)),
+                   "average_odds": round(sum(odds) / len(odds)) if odds else None}
+    return out
+
+
+def stake_text(stakes: dict) -> list[str]:
+    out = ["## Results by stake", ""]
+    if not stakes:
+        return out + ["No done bet has both a stake and a won or lost result yet.", ""]
+    out += ["| Stake | Bets | Won | Win rate | Average odds |", "|---|---|---|---|---|"]
+    for st in STAKES:
+        if st in stakes:
+            r = stakes[st]
+            odds = f"{r['average_odds']}%" if r["average_odds"] is not None else "—"
+            out.append(f"| {st.capitalize()} | {r['bets']} | {r['won']} | {r['win_rate']}% | {odds} |")
+    return out + [""]
+
+
 def calibration_text(cal: dict | None) -> list[str]:
     out = ["## Odds against results", ""]
     if not cal:
@@ -796,7 +838,7 @@ def radar_text(scored: list[dict], fus: list[dict], today: dt.date, area: str | 
     out = [
         "---", "type: bet-radar", f"updated: {today.isoformat()}", "---",
         f"# Bet Radar{scope}", "",
-        f"Written by `bets.py score` on {short(today)}. Each run rewrites this note. Status, odds, decision and rating are set on the bet notes.", "",
+        f"Written by `bets.py score` on {short(today)}. Each run rewrites this note. Status, odds, stake, decision and rating are set on the bet notes.", "",
         f"**{len(scored)} bets** · {summary or 'none yet'}", "",
     ]
     for s in STATUS_ORDER:
@@ -817,6 +859,7 @@ def radar_text(scored: list[dict], fus: list[dict], today: dt.date, area: str | 
     out += [""]
     out += grid_text(groups["done"])
     out += calibration_text(calibration(groups["done"]))
+    out += stake_text(by_stake(groups["done"]))
     out += ["## Follow-ups", ""]
     if fus:
         owner = None
@@ -830,10 +873,10 @@ def radar_text(scored: list[dict], fus: list[dict], today: dt.date, area: str | 
     where = f'"{BETS_DIR}"'
     area_filter = f' AND area = "{area}"' if area else ""
     out += ["", "## Live view", "",
-            "Dataview reads the status, odds, decision and rating on each bet note.", "",
+            "Dataview reads the status, odds, stake, decision and rating on each bet note.", "",
             "```dataview",
             'TABLE WITHOUT ID file.link AS "Bet", owner AS "Owner", status AS "Status", odds AS "Odds", '
-            'decision AS "Decision", rating AS "Rating", value AS "Value"',
+            'stake AS "Stake", decision AS "Decision", rating AS "Rating", value AS "Value"',
             f'FROM {where}',
             f'WHERE type = "bet"{area_filter}',
             "SORT status ASC, file.name ASC",
@@ -864,6 +907,7 @@ def cmd_score(vault: str, today: dt.date, t: Thresholds, area: str | None, out_r
             for d in DECISIONS for r in GRID_RESULTS}
     return {"date": today.isoformat(), "radar": rel, "bets": len(shown), "notes_updated": 0,
             "status": counts, "decision_vs_result": grid, "calibration": calibration(done),
+            "by_stake": by_stake(done),
             "follow_ups": len(fus)}
 
 

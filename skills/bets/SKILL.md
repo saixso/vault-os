@@ -76,14 +76,16 @@ prefill an answer: the values are theirs. If they skip one, leave it blank.
 4. What value do you expect? (the business number that says whether it paid off)
 5. What odds do you give it, from 0 to 100?
 6. What would prove it wrong?
+7. What is at stake: small, medium, or large? And what would you lose?
 
 Then:
 
-7. Read the answers back as a short list and get the user's yes. Status starts
+8. Read the answers back as a short list and get the user's yes. Status starts
    at `in progress` unless they said paused or done.
-8. Write them in one call: `B new` with JSON holding `bet`, `owner`, `area`,
-   `why`, `value`, `odds`, `wrong_if` (and `status` if they gave one). Odds may
-   be given as 60, 60% or 0.6; the script stores 60. Then `B score`.
+9. Write them in one call: `B new` with JSON holding `bet`, `owner`, `area`,
+   `why`, `value`, `odds`, `wrong_if`, `stake`, `stake_note` (and `status` if
+   they gave one). Odds may be given as 60, 60% or 0.6; the script stores 60.
+   Then `B score`.
 
 ## 3. Status
 
@@ -116,13 +118,14 @@ they skip one, it stays blank and the radar asks for it once. Then `B score`.
 2. Report the counts: in progress, paused, done, and not set. Name any done bet
    missing a decision or a result rating. If the radar shows odds against
    results, give the average odds and the win rate, and with fewer than 10
-   bets say the gap says little yet.
+   bets say the gap says little yet. If it shows results by stake, give the
+   win rate for large bets beside the rest.
 
 ## Constraints
 
 - Write bet notes only through `bets.py`, except the user's own Notes section
   and their own edits in Obsidian.
-- Never set `status`, `odds`, `wrong_if`, `decision` or `rating` except from the user's words.
+- Never set `status`, `odds`, `wrong_if`, `stake`, `stake_note`, `decision` or `rating` except from the user's words.
 - A cycle end, a ship date, a milestone, or a blocker does not make a bet done.
 - Summaries only. No meeting transcript text, links, codes or account details
   in a bet note.
