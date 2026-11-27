@@ -5,21 +5,23 @@ Goal: the user walks into every meeting knowing why they're there, what "done" l
 ## Which meetings get a card
 
 - A card for every meeting where the user is a required attendee or the organizer.
-- Optional, large-audience or status-only meetings get one line: what it covers and "optional, skip?".
+- Optional, large-audience or status-only meetings get one line: the time, the name and "optional, skip?".
 - A cancelled meeting gets one line saying it's cancelled, so the day reads true.
 - Focus blocks, out-of-office and holds get nothing.
 
-## The card (3 to 5 lines, never more)
+## The card (3 lines, 30 words, never more)
 
 ```
-**10:30 Sam 1:1** · discuss, you decide
-- **Purpose:** why the meeting exists today. **Outcome:** what is true when it ends.
-- **From Nov 6:** decisions made last time, and who still owes what.
-- **Ask:** "the one question they must get answered"
-- [ ] #outcome the outcome, in a few words [mtg:: Sam 1:1]
+**10:30 Sam 1:1** · decide (you) · Ask: "which vendor, by when?"
+Bring: pilot numbers; still open from Nov 6: Sam's draft labels
+- [ ] #outcome Vendor picked [mtg:: Sam 1:1]
 ```
 
-Header: time (ET), the meeting's plain name, its type, and who decides.
+1. Time (ET), the meeting's plain name, its type and who decides, and the one question.
+2. Bring and still open: only what changes the conversation. Leave the line out when there is nothing.
+3. The `#outcome` box: what is true when it ends, in a few words.
+
+Purpose goes in the run's report, not on the card.
 
 The frameworks, in the order they're used:
 
