@@ -23,11 +23,11 @@ Add by judgment anything the sources show waiting only on the user today (a yes 
 ## Line format
 
 ```
-- [ ] **The one thing:** what, as an action 📅 YYYY-MM-DD [why:: one line: what it unblocks or who waits]
-- [ ] what 📅 YYYY-MM-DD [why:: ...]
-- [ ] what 📅 YYYY-MM-DD [why:: ...]
+- [ ] **The one thing:** install proposal to Jeremy ⏳ 2026-11-27
+- [ ] Security training, 30 min ⏳ 2026-11-27
+- [ ] Missed updates baseline to Mark ⏳ 2026-11-27 📅 2026-11-30
 ```
 
-The deadline is when it has to be done, not when it was first due. Overdue items get today's date, and the why says how late. What ranked 4th to 6th goes on one "Ranked next" line in Prep, nothing more.
+Each line is an action in 10 words or fewer, with `⏳` set to the note's day. Add `📅` only for a real deadline after that day. No why text in the note: say why each was picked, and what ranked 4th to 6th, in the run's report.
 
 Write with `planner.py focus-fill FILE` (stdin, 3 lines). It prints "kept yours" and changes nothing if Focus already has items.
