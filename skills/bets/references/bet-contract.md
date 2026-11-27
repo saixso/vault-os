@@ -67,6 +67,11 @@ shows on the radar as not set. The note is left as it is until the user sets one
 `{{at_stake}}` is the stake and the stake note joined as `large: what you
 would lose`, or just the one that is set.
 
+When `bets.py set` changes `why`, `wrong_if`, `stake`, `stake_note` or `value`,
+it rewrites the matching section (Why, Proved wrong if, At stake, Value) too,
+as long as the section still holds the old text or nothing. A section the user
+edited by hand is kept, and `set` says so on stderr.
+
 ## Follow-ups
 
 Each names the bet's owner:

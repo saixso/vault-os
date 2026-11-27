@@ -353,6 +353,31 @@ class Appends(VaultCase):
         self.assertIn("odds: 70\n", text)
         self.assertIn("decision: good\n", text)
 
+    def test_set_updates_the_matching_sections(self):
+        self.cli("set", "Alpha", "why=Cut repeat tickets", "value=Fewer calls", "stake=small",
+                 "stake_note=lose no time", "wrong_if=Tickets stay flat")
+        self.cli("set", "Alpha", "stake_note=lose a sprint", "why=Cut repeat tickets by half")
+        text = self.read("bets/Alpha.md")
+        body = text.split("\n---\n", 1)[1]
+        self.assertIn("## At stake\n\nsmall: lose a sprint\n\n## Value", body)
+        self.assertIn("## Why\n\nCut repeat tickets by half\n\n", body)
+        self.assertIn("## Value\n\nFewer calls\n\n## KPIs", body)
+        self.assertIn("## Proved wrong if\n\nTickets stay flat\n\n", body)
+        self.assertNotIn("lose no time", body)
+        self.assertIn("## Notes", body)
+
+    def test_set_keeps_a_section_edited_by_hand(self):
+        self.cli("set", "Alpha", "value=Fewer calls")
+        path = os.path.join(self.v, "bets", "Alpha.md")
+        text = self.read("bets/Alpha.md").replace("\n\nFewer calls\n", "\n\nFewer calls, and my own notes\n")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        r = self.cli("set", "Alpha", "value=Fewer repeat calls")
+        self.assertIn("Value section", r.stderr)
+        after = self.read("bets/Alpha.md")
+        self.assertIn("value: Fewer repeat calls\n", after)
+        self.assertIn("Fewer calls, and my own notes", after)
+
     def test_refuses_a_note_that_is_not_a_bet(self):
         with open(os.path.join(self.v, "bets", "Readme.md"), "w") as f:
             f.write("# Not a bet\n")

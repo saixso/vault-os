@@ -696,8 +696,45 @@ def cmd_set(path: str, pairs: list[str]) -> dict:
         if k == "odds":
             v = check_odds(v)
         values[k] = v
-    _write(path, write_fields(text, values))
+    new_text = write_fields(text, values)
+    new_text, left = sync_sections(read_frontmatter(text), read_frontmatter(new_text), new_text)
+    _write(path, new_text)
+    for heading in left:
+        print(f"bets: left the {heading} section as it is, because it was edited by hand; "
+              f"update it in the note if it should match", file=sys.stderr)
     return values
+
+
+# A section in the note's body that repeats a frontmatter field, as the starter template writes it.
+SECTION_FIELDS = {
+    "Why": lambda fm: fm.get("why", ""),
+    "Proved wrong if": lambda fm: fm.get("wrong_if", ""),
+    "At stake": lambda fm: ": ".join(x for x in (fm.get("stake", ""), fm.get("stake_note", "")) if x),
+    "Value": lambda fm: fm.get("value", ""),
+}
+
+
+def sync_sections(old_fm: dict, new_fm: dict, text: str) -> tuple[str, list[str]]:
+    """Rewrite the body sections whose field changed.
+
+    A section is rewritten only when it still holds the old field text, or nothing,
+    so text the user wrote there by hand is kept. Returns the new text and the
+    headings left alone for that reason."""
+    left = []
+    for heading, field_text in SECTION_FIELDS.items():
+        old, new = field_text(old_fm).strip(), field_text(new_fm).strip()
+        if old == new:
+            continue
+        m = re.search(r"^## " + re.escape(heading) + r"[ \t]*\n(.*?)(?=^#{1,2} |\Z)", text, re.M | re.S)
+        if not m:
+            continue
+        current = m.group(1).strip()
+        if current not in ("", old):
+            left.append(heading)
+            continue
+        body = f"\n{new}\n\n" if new else "\n"
+        text = text[:m.start(1)] + body + text[m.end(1):]
+    return text, left
 
 
 def kpi_names(path: str) -> list[str]:
