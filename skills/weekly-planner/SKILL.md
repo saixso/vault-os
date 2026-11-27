@@ -10,7 +10,7 @@ description: >
 
 # weekly-planner
 
-Read `../planner/references/note-contract.md` and `../planner/references/sources.md` first. `P` is the planner script, as in daily-planner.
+Read `../planner/references/note-contract.md`, `../planner/references/sources.md` and `../planner/references/ideas.md` first. `P` is the planner script, as in daily-planner.
 
 Input: `SUNDAY`, the Sunday that starts the coming week (in the user's time zone). Last week is the seven days before it.
 
@@ -54,4 +54,5 @@ Input: `SUNDAY`, the Sunday that starts the coming week (in the user's time zone
    - Write any new to-do that comes out of a risk (answer an invite, cancel a meeting) into Monday's daily note with `P block-add <monday note> todo`, with a `📅` date.
 
 5. Write `suggested-goals` with `P block-set`: up to 3 lines, each starting `Suggestion:` and tied to a due promise, a bet to review, or last week's "highest-leverage" answer. Never fill the Goals checkboxes; those are the user's.
-6. Commit only this note, message `planner: week YYYY-Www`. Push only where the run's instructions say to. Report counts and any unreachable source.
+6. Write `ideas-moved` with `P block-set <note> ideas-moved`, in the shape `ideas.md` gives: ideas moved last week, new ones, ones untouched 14+ days, and a link map of last week's new links (12 nodes at most). Leave it empty when the vault has no ideas folder.
+7. Commit only this note, message `planner: week YYYY-Www`. Push only where the run's instructions say to. Report counts and any unreachable source.

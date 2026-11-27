@@ -8,6 +8,7 @@ What the planner may write, and in what shape. Every skill follows this.
 - The planner writes only between `<!-- planner:NAME -->` and `<!-- /planner:NAME -->`.
 - Write blocks only through `scripts/planner.py` (`block-set` replaces a block, `block-add` appends lines that are not already in the note). Never hand-edit a block.
 - Exception: ticking a `#promise` box. Allowed only with clear evidence (a sent mail or a meeting where it was done), and the line gets `[evidence:: one line]` so the user can see why.
+- Exception: the idea pass (`ideas.md`) may create and update notes in the ideas folder, add an `aliases:` entry to an existing note (capped per run, never under `wiki/`), add an `ideas:` entry to a problem note, and append checkboxes to Link Suggestions. Nothing else outside a block.
 
 ## Blocks
 
@@ -19,8 +20,10 @@ What the planner may write, and in what shape. Every skill follows this.
 | daily | `todo` | daily-planner, same evening | block-add |
 | daily | `promises` | daily-planner, same evening | block-add |
 | daily | `decisions` | daily-planner, same evening | block-add |
+| daily | `ideas` | daily-planner, same evening, 3 to 5 lines (see ideas.md) | block-set |
 | daily | `scorecard` | `planner.py scorecard` | automatic |
 | weekly | `last-week`, `suggested-goals`, `week-ahead` | weekly-planner | block-set |
+| weekly | `ideas-moved` | weekly-planner: ideas moved, new, untouched 14+ days, link map (see ideas.md) | block-set |
 | monthly | `month-scorecard`, `moved`, `stalled` | monthly-planner | block-set |
 
 ## Line formats
@@ -63,6 +66,16 @@ Verdict meanings (Thinking in Bets: judge the decision apart from the result):
 |---|---|---|
 | Sound decision | skill | bad-luck |
 | Poor decision | luck | bad-call |
+
+Idea line in the daily `ideas` block, one per idea that moved today:
+
+```
+- [[Idea - Alert sites before devices fail]] new, seed: draft alert rules owed (5 links)
+- Weekly firmware pilot ring: first mention, no note yet
+```
+
+- Link the idea note when there is one; plain text when it is a first mention.
+- After the name: what changed (new, or old stage → new stage) and 15 words or fewer on what moved.
 
 ## Daily frontmatter numbers
 

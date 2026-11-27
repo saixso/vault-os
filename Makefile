@@ -3,7 +3,7 @@
 
 .PHONY: test test-address test-tiling test-boundary test-bm25 test-retrieve \
         test-lock test-concurrent test-mode test-contextual test-hot-sync \
-        test-hooks test-planner test-bets \
+        test-hooks test-planner test-bets test-idea-links \
         setup-dragonscale setup-retrieve setup-mode clean-test-state help
 
 help:
@@ -22,12 +22,13 @@ help:
 	@echo "  make test-hooks       hooks/*.json schema tests (python, hermetic)"
 	@echo "  make test-planner     scripts/planner.py tests (python, hermetic)"
 	@echo "  make test-bets        scripts/bets.py tests (python, hermetic)"
+	@echo "  make test-idea-links  scripts/idea-links.py tests (python, hermetic)"
 	@echo "  make setup-dragonscale Run bin/setup-dragonscale.sh against this vault"
 	@echo "  make setup-retrieve   Run bin/setup-retrieve.sh against this vault (opt-in v1.7)"
 	@echo "  make setup-mode       Run bin/setup-mode.sh to pick a methodology mode (opt-in v1.8)"
 	@echo "  make clean-test-state Remove runtime lockfiles and tiling/embed caches"
 
-test: test-address test-tiling test-boundary test-bm25 test-retrieve test-lock test-concurrent test-mode test-contextual test-hot-sync test-hooks test-planner test-bets
+test: test-address test-tiling test-boundary test-bm25 test-retrieve test-lock test-concurrent test-mode test-contextual test-hot-sync test-hooks test-planner test-bets test-idea-links
 	@echo ""
 	@echo "All tests passed."
 
@@ -82,6 +83,10 @@ test-planner:
 test-bets:
 	@echo "=== test_bets.py ==="
 	@python3 tests/test_bets.py
+
+test-idea-links:
+	@echo "=== test_idea_links.py ==="
+	@python3 tests/test_idea_links.py
 
 setup-dragonscale:
 	@bash bin/setup-dragonscale.sh

@@ -10,7 +10,7 @@ description: >
 
 # daily-planner
 
-Read `../planner/references/note-contract.md`, `../planner/references/sources.md`, `../planner/references/meeting-prep.md` and `../planner/references/focus.md` first. They hold the write rules and the privacy rules.
+Read `../planner/references/note-contract.md`, `../planner/references/sources.md`, `../planner/references/meeting-prep.md`, `../planner/references/focus.md` and `../planner/references/ideas.md` first. They hold the write rules and the privacy rules.
 
 `P` below means `python3 PLUGIN/scripts/planner.py --vault VAULT`, as `../planner/SKILL.md` defines them (`PLUGIN` is `${CLAUDE_PLUGIN_ROOT}` in Claude Code, or the vault-os checkout). Note paths given to `P` are relative to the vault.
 
@@ -24,7 +24,8 @@ Inputs: `TODAY` (a date in the user's time zone). `NEXT` is the next workday: Fr
 4. Decisions the user made today: `P block-add <today note> decisions`.
 5. Open promises from earlier days (`P open-items TODAY`, plus undated ones): if today's sent mail or a meeting shows one done, tick it in the note where it lives and add `[evidence:: ...]`. If unsure, leave it.
 6. For each meeting card: if notes or mail show the outcome was reached and the user hasn't ticked it, say so in the report; never tick `#outcome` yourself. Add the meeting's new promises and decisions as in steps 3 and 4.
-7. `P scorecard <today note> --meeting-hours H` (also counts meeting outcomes).
+7. Ideas: run the idea pass in `../planner/references/ideas.md` on today's meetings (link finder `PLUGIN/scripts/idea-links.py`, read-only), then write `P block-set <today note> ideas`, 3 to 5 lines. Skip it when the run's instructions name no ideas folder and the vault has no `ideas/`.
+8. `P scorecard <today note> --meeting-hours H` (also counts meeting outcomes).
 
 ## 2. Prep NEXT
 
@@ -51,5 +52,5 @@ Rules for prep: empty sections are left out, and the whole block stays under abo
 
 ## 3. Finish
 
-- Commit only the notes you wrote, message `planner: close TODAY, prep NEXT`. Push only where the run's own instructions say to.
-- Report in two or three lines: counts written, any source that was unreachable, anything skipped for privacy.
+- Commit only the notes you wrote (idea notes, aliases and Link Suggestions included), message `planner: close TODAY, prep NEXT`. If the run's instructions say idea notes go for review, put them on a branch instead and say so in the report. Push only where the run's own instructions say to.
+- Report in two or three lines: counts written (idea notes created and updated, links, aliases), any source that was unreachable, anything skipped for privacy.

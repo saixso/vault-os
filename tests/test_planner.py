@@ -179,6 +179,19 @@ class Blocks(VaultCase):
         text = self.read("reviews/daily/2026-10-13.md")
         self.assertIn("## Decisions\n\n<!-- planner:decisions -->\n- #decision Use plan A", text)
 
+    def test_old_notes_get_ideas_sections(self):
+        os.makedirs(self.path("reviews/daily"))
+        os.makedirs(self.path("reviews/weekly"))
+        with open(self.path("reviews/daily/2026-10-13.md"), "w") as f:
+            f.write("# Old\n\n## Focus\n")
+        with open(self.path("reviews/weekly/Weekly Review 2026-W42.md"), "w") as f:
+            f.write("# Old week\n")
+        planner.block_set(self.path("reviews/daily/2026-10-13.md"), "ideas", "- Pilot ring: first mention")
+        planner.block_set(self.path("reviews/weekly/Weekly Review 2026-W42.md"), "ideas-moved", "**New** (1)")
+        self.assertIn("## Ideas\n\n<!-- planner:ideas -->\n- Pilot ring", self.read("reviews/daily/2026-10-13.md"))
+        self.assertIn("## Ideas moved\n\n<!-- planner:ideas-moved -->\n**New** (1)",
+                      self.read("reviews/weekly/Weekly Review 2026-W42.md"))
+
 
 class Scorecard(VaultCase):
     def write_day(self, day, focus, promises="", decisions=""):
@@ -269,6 +282,8 @@ class TodosAndTime(VaultCase):
             self.assertIn("task.due.fromNow.groupText", text)
         self.assertIn("<!-- planner:todo -->", daily)
         self.assertIn("## This week", weekly)
+        self.assertIn("<!-- planner:ideas -->", daily)
+        self.assertIn("<!-- planner:ideas-moved -->", weekly)
 
 
 class MeetingOutcomes(VaultCase):
